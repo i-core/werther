@@ -1,0 +1,266 @@
+@import url(https://fonts.googleapis.com/css?family=Roboto:300);
+
+html {
+  box-sizing: border-box;
+}
+
+*,
+::after,
+::before {
+  box-sizing: inherit;
+}
+
+.login-page {
+  width: 360px;
+  padding: 8% 0 0;
+  margin: auto;
+}
+
+@media (max-width: 480px) {
+  .login-page {
+    width: 100%;
+    padding: 8% 5% 0;
+  }
+}
+
+.form {
+  position: relative;
+  z-index: 1;
+  background: #ffffff;
+  max-width: 360px;
+  margin: 0 auto 100px;
+  padding: 2.815em;
+  text-align: center;
+  box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.2), 0 5px 5px 0 rgba(0, 0, 0, 0.24);
+}
+
+@media (max-width: 480px) {
+  .form {
+    margin: 15% auto 0;
+    max-width: 100%;
+    padding: 0;
+    box-shadow: none;
+  }
+}
+
+.form input {
+  font-family: "Roboto", sans-serif;
+  outline: 0;
+  background: #f2f2f2;
+  width: 100%;
+  border: 0;
+  margin: 0 0 15px;
+  padding: 15px;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+@media (max-width: 480px) {
+  .form input {
+    font-size: 1.5em;
+  }
+}
+
+.form button {
+  font-family: "Roboto", sans-serif;
+  text-transform: uppercase;
+  outline: 0;
+  background: #2ba6cb;
+  width: 100%;
+  border: 0;
+  padding: 1.08em;
+  color: #ffffff;
+  font-size: 14px;
+  -webkit-transition: all 0.3 ease;
+  transition: all 0.3 ease;
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .form button {
+    padding: 0.8em;
+    font-size: 1.3em;
+  }
+}
+
+.form button:hover {
+  background: #2795b7;
+}
+
+.form button:active {
+  background: #2384a3; 
+}
+
+.form .message {
+  margin: 0 0 15px;
+  color: #ff6961;
+  font-size: 15px;
+}
+
+@media (max-width: 480px) {
+  .form .message {
+    min-height: 3em;
+    font-size: 1.5em;
+  }
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.container:before,
+.container:after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+.container .info {
+  margin: 50px auto;
+  text-align: center;
+}
+
+.container .info h1 {
+  margin: 0 0 15px;
+  padding: 0;
+  font-size: 36px;
+  font-weight: 300;
+  color: #1a1a1a;
+}
+
+.container .info span {
+  color: #4d4d4d;
+  font-size: 12px;
+}
+
+.container .info span a {
+  color: #000000;
+  text-decoration: none;
+}
+
+.container .info span .fa {
+  color: #ef3b3a;
+}
+
+body {
+  font-family: "Roboto", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.remember-container {
+  padding-bottom: 2em;
+  font-size: 90%;
+}
+
+.checkbox {
+  cursor: pointer;
+}
+
+.checkbox div.checkbox-overlay {
+  position: relative;
+  overflow: hidden;
+}
+
+.checkbox input {
+  opacity: 0;
+  position: absolute;
+  cursor: pointer;
+  left: 0;
+  margin: 0;
+  top: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.checkbox label {
+  float: left;
+  line-height: initial;
+  font-size: 0.9em;
+  padding: 0.14em 1em;
+}
+
+@media (max-width: 480px) {
+  .checkbox label {
+    font-size:1.25em;
+    padding:0.28em 0.8em;
+  }
+}
+
+.checkbox div.checkbox-container {
+  float: left;
+}
+
+.checkbox div.checkbox-container .checkbox-checkmark {
+  position: relative;
+  background-color: #eee;
+  width: 20px;
+  height: 20px;
+}
+
+.checkbox div.checkbox-checkmark::after {
+  display: none;
+  position: absolute;
+  content: "";
+  border: solid white;
+  -webkit-transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg);
+  height: 12px;
+  width: 6px;
+  left: 7px;
+  top: 3px;
+  border-width: 0 2px 3px 0;
+}
+
+@media (max-width: 480px) {
+  .checkbox div.checkbox-container .checkbox-checkmark {
+    width: 34px;
+    height: 34px;
+  }
+
+  .checkbox div.checkbox-container .checkbox-checkmark:after {
+    height: 20.4px;
+    width: 10.2px;
+    left: 11.9px;
+    top: 4px;
+    border-width: 0 3px 5px 0;
+  }
+}
+
+.checkbox input:checked ~ .checkbox-container > .checkbox-checkmark {
+  background-color: #2ba6cb;
+  border: 0;
+}
+
+.checkbox input:checked ~ .checkbox-container > .checkbox-checkmark:after {
+  display: initial;
+}
+
+.checkbox input:checked:hover ~ .checkbox-container > .checkbox-checkmark {
+  background-color: #2ba6cb;
+  border: 0;
+}
+
+.checkbox
+  input:checked:hover
+  ~ .checkbox-container
+  > .checkbox-checkmark:after {
+  border-color: white;
+}
+
+.checkbox input:hover ~ .checkbox-container > .checkbox-checkmark {
+  background-color: #ddd;
+}
+
+.checkbox input:hover ~ .checkbox-container > .checkbox-checkmark:after {
+  display: initial;
+  border-color: rgba(190, 190, 190, 1);
+  border-top: 0px;
+  border-left: 0px;
+}
+

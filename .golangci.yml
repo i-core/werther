@@ -1,0 +1,29 @@
+# Copyright (C) JSC iCore - All Rights Reserved
+#
+# Unauthorized copying of this file, via any medium is strictly prohibited
+# Proprietary and confidential
+#
+# Written by Konstantin Lepa <klepa@i-core.ru>, September 2018
+
+run:
+  test: true
+  silent: true
+
+linters-settings:
+  govet:
+    check-shadowing: true
+
+linters:
+  disable-all: true
+  enable:
+    - deadcode
+    - gofmt
+    - goimports
+    - golint
+    - varcheck
+    - structcheck
+    - megacheck
+    - ineffassign
+    - interfacer
+    - unconvert
+    - govet

@@ -1,0 +1,4 @@
+- image: golang:1.11-alpine
+  shell: go test -v ./...
+- image: golangci/golangci-lint
+  shell: golangci-lint -v run
