@@ -2,10 +2,8 @@
 #
 # Unauthorized copying of this file, via any medium is strictly prohibited
 # Proprietary and confidential
-#
-# Written by Konstantin Lepa <klepa@i-core.ru>, July 2018
 
-FROM golang:1.11-alpine AS build
+FROM golang:1.12-alpine AS build
 
 ARG VERSION
 ARG GOPROXY
@@ -18,7 +16,7 @@ COPY go.mod .
 COPY go.sum .
 COPY cmd cmd
 COPY internal internal
-RUN env CGO_ENABLED=0 go install -ldflags="-w -s -X gopkg.i-core.ru/werther/internal/server.Version=${VERSION}" ./...
+RUN env CGO_ENABLED=0 go install -ldflags="-w -s -X gopkg.i-core.ru/werther/cmd/werther.Version=${VERSION}" ./...
 
 FROM scratch AS final
 COPY --from=build /etc/passwd /etc/passwd

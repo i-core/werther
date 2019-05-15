@@ -1,0 +1,16 @@
+{{ define "main" }}
+external template
+WebBasePath: {{ .WebBasePath }};
+
+Title:
+{{ block "title" .Data }}{{ end }}
+
+Style:
+{{ block "style" .Data }}{{ end }}
+
+Js:
+{{ block "js" .Data }}{{ end }}
+
+Content:
+{{ block "content" .Data }}{{ end }}
+{{ end }}

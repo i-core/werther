@@ -3,8 +3,6 @@ Copyright (C) JSC iCore - All Rights Reserved
 
 Unauthorized copying of this file, via any medium is strictly prohibited
 Proprietary and confidential
-
-Written by Konstantin Lepa <klepa@i-core.ru>, July 2018
 */
 
 package ldapclient
@@ -20,21 +18,23 @@ import (
 
 	"github.com/coocood/freecache"
 	"github.com/pkg/errors"
-	"gopkg.i-core.ru/werther/internal/logger"
+	"go.uber.org/zap"
+	"gopkg.i-core.ru/logutil"
 	ldap "gopkg.in/ldap.v2"
 )
 
 // Config is a LDAP configuration.
 type Config struct {
-	Endpoints        []string          // are LDAP servers
-	BaseDN           string            // is a base DN for searching users
-	BindDN, BindPass string            // is needed for authentication
-	RoleBaseDN       string            // is a base DN for searching roles
-	RoleAttr         string            // is LDAP attribute's name for a role's name
-	RoleClaim        string            // is custom OIDC claim name for roles' list
-	AttrClaims       map[string]string // maps a LDAP attribute's name onto an OIDC claim
-	CacheSize        int               // is a size of claims' cache in KiB
-	CacheTTL         time.Duration     // is a TTL of claims' cache
+	Endpoints  []string          `envconfig:"endpoints" required:"true" desc:"a LDAP's server URLs as \"<address>:<port>\""`
+	BaseDN     string            `envconfig:"basedn" required:"true" desc:"a LDAP base DN for searching users"`
+	BindDN     string            `envconfig:"binddn" desc:"a LDAP bind DN"`
+	BindPass   string            `envconfig:"bindpw" json:"-" desc:"a LDAP bind password"`
+	RoleBaseDN string            `envconfig:"role_basedn" required:"true" desc:"a LDAP base DN for searching roles"`
+	RoleAttr   string            `envconfig:"role_attr" default:"description" desc:"a LDAP attribute for role's name"`
+	RoleClaim  string            `ignored:"true"` // is custom OIDC claim name for roles' list
+	AttrClaims map[string]string `envconfig:"attr_claims" default:"name:name,sn:family_name,givenName:given_name,mail:email" desc:"a mapping of LDAP attributes to OIDC claims"`
+	CacheSize  int               `envconfig:"cache_size" default:"512" desc:"a user info cache's size in KiB"`
+	CacheTTL   time.Duration     `envconfig:"cache_ttl" default:"30m" desc:"a user info cache TTL"`
 }
 
 // Client is a LDAP client (compatible with Active Directory).
@@ -45,6 +45,9 @@ type Client struct {
 
 // New creates a new LDAP client.
 func New(cnf Config) *Client {
+	if cnf.RoleClaim == "" {
+		cnf.RoleClaim = "http://i-core.ru/claims/roles"
+	}
 	return &Client{
 		Config: cnf,
 		cache:  freecache.NewCache(cnf.CacheSize * 1024),
@@ -86,7 +89,7 @@ func (cli *Client) Authenticate(ctx context.Context, username, password string) 
 
 	// Clear the claims' cache because of possible re-authentication. We don't want stale claims after re-login.
 	if ok := cli.cache.Del([]byte(username)); ok {
-		log := logger.FromContext(ctx)
+		log := logutil.FromContext(ctx)
 		log.Debug("Cleared user's OIDC claims in the cache")
 	}
 
@@ -103,13 +106,12 @@ func (cli *Client) dialTCP(ctx context.Context) <-chan *ldap.Conn {
 		go func(addr string) {
 			defer wg.Done()
 
-			log := logger.FromContext(ctx)
-			log = log.With("address", addr)
+			log := logutil.FromContext(ctx).Sugar()
 
 			d := net.Dialer{Timeout: ldap.DefaultTimeout}
 			tcpcn, err := d.DialContext(ctx, "tcp", addr)
 			if err != nil {
-				log.Debugw("Failed to create a LDAP connection")
+				log.Debug("Failed to create a LDAP connection", "address", addr)
 				return
 			}
 			ldapcn := ldap.NewConn(tcpcn, false)
@@ -117,7 +119,7 @@ func (cli *Client) dialTCP(ctx context.Context) <-chan *ldap.Conn {
 			select {
 			case <-ctx.Done():
 				ldapcn.Close()
-				log.Debugw("a LDAP connection is cancelled")
+				log.Debug("a LDAP connection is cancelled", "address", addr)
 				return
 			case ch <- ldapcn:
 			}
@@ -165,14 +167,14 @@ func (cli *Client) findBasicUserDetails(cn *ldap.Conn, username string, attrs []
 
 // FindOIDCClaims finds all OIDC claims for a user.
 func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[string]interface{}, error) {
-	log := logger.FromContext(ctx)
+	log := logutil.FromContext(ctx).Sugar()
 
 	// Retrieving from LDAP is slow. So, we try to get claims for the given username from the cache.
 	switch cdata, err := cli.cache.Get([]byte(username)); err {
 	case nil:
 		var claims map[string]interface{}
 		if err = json.Unmarshal(cdata, &claims); err != nil {
-			log.Infow("Failed to unmarshal user's OIDC claims", "error", err, "data", cdata)
+			log.Info("Failed to unmarshal user's OIDC claims", zap.Error(err), "data", cdata)
 			return nil, err
 		}
 		log.Debug("Retrieved user's OIDC claims from the cache", "claims", claims)
@@ -180,7 +182,7 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 	case freecache.ErrNotFound:
 		log.Debug("User's OIDC claims is not found in the cache")
 	default:
-		log.Infow("Failed to retrieve user's OIDC claims from the cache", "error", err)
+		log.Infow("Failed to retrieve user's OIDC claims from the cache", zap.Error(err))
 	}
 
 	// Try to make multiple TCP connections to the LDAP server for getting claims.
@@ -260,10 +262,10 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 	// Save the claims in the cache for future queries.
 	cdata, err := json.Marshal(claims)
 	if err != nil {
-		log.Infow("Failed to marshal user's OIDC claims for caching", "error", err, "claims", claims)
+		log.Infow("Failed to marshal user's OIDC claims for caching", zap.Error(err), "claims", claims)
 	}
 	if err = cli.cache.Set([]byte(username), cdata, int(cli.CacheTTL.Seconds())); err != nil {
-		log.Infow("Failed to store user's OIDC claims into the cache", "error", err, "claims", claims)
+		log.Infow("Failed to store user's OIDC claims into the cache", zap.Error(err), "claims", claims)
 	}
 
 	return claims, nil

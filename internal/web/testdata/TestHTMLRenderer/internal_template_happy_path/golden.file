@@ -1,0 +1,34 @@
+internal template
+WebBasePath: testBasePath;
+
+Title:
+
+CSRFToken: testCSRFToken;
+Challenge: testChalenge;
+LoginURL: testLoginURL;
+IsInvalidCredentials: true;
+IsInternalError: true;
+
+Style:
+
+CSRFToken: testCSRFToken;
+Challenge: testChalenge;
+LoginURL: testLoginURL;
+IsInvalidCredentials: true;
+IsInternalError: true;
+
+Js:
+
+CSRFToken: testCSRFToken;
+Challenge: testChalenge;
+LoginURL: testLoginURL;
+IsInvalidCredentials: true;
+IsInternalError: true;
+
+Content:
+
+CSRFToken: testCSRFToken;
+Challenge: testChalenge;
+LoginURL: testLoginURL;
+IsInvalidCredentials: true;
+IsInternalError: true;

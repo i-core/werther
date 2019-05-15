@@ -4,7 +4,7 @@
 // templates/static/script.js (1.24kB)
 // templates/static/style.css (4.316kB)
 
-package server
+package web
 
 import (
 	"bytes"
@@ -86,7 +86,7 @@ func loginTmpl() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "login.tmpl", size: 1216, mode: os.FileMode(0644), modTime: time.Unix(1550576890, 0)}
+	info := bindataFileInfo{name: "login.tmpl", size: 1216, mode: os.FileMode(0644), modTime: time.Unix(1557837078, 0)}
 	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x57, 0xfc, 0x84, 0x28, 0x53, 0xbc, 0x7e, 0xe8, 0xf7, 0x63, 0x72, 0x3, 0x51, 0x21, 0xda, 0x48, 0x1f, 0x45, 0x63, 0xe8, 0x32, 0x66, 0x1b, 0xfd, 0x47, 0xca, 0x33, 0x3c, 0x36, 0x79, 0xe4, 0xf9}}
 	return a, nil
 }
@@ -106,7 +106,7 @@ func staticScriptJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/script.js", size: 1240, mode: os.FileMode(0644), modTime: time.Unix(1545371222, 0)}
+	info := bindataFileInfo{name: "static/script.js", size: 1240, mode: os.FileMode(0644), modTime: time.Unix(1557837078, 0)}
 	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x21, 0x83, 0x40, 0xc4, 0xb1, 0x4e, 0x2c, 0xf8, 0x84, 0x11, 0x9b, 0x80, 0xc2, 0xe6, 0xab, 0xb5, 0xf8, 0xd5, 0x3b, 0xc9, 0x2e, 0x5b, 0x12, 0x7, 0x29, 0x2f, 0x21, 0x5f, 0x59, 0x35, 0xf7, 0xad}}
 	return a, nil
 }
@@ -126,7 +126,7 @@ func staticStyleCss() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/style.css", size: 4316, mode: os.FileMode(0644), modTime: time.Unix(1545371222, 0)}
+	info := bindataFileInfo{name: "static/style.css", size: 4316, mode: os.FileMode(0644), modTime: time.Unix(1557837078, 0)}
 	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0xf8, 0x53, 0xba, 0x33, 0x44, 0x16, 0x28, 0xdc, 0x9c, 0x4f, 0x69, 0xd7, 0x30, 0x5, 0x56, 0x8f, 0x1f, 0x78, 0xe3, 0x53, 0x41, 0xe6, 0x42, 0x95, 0x4, 0xaa, 0x5b, 0x40, 0xc, 0x30, 0x4d, 0x68}}
 	return a, nil
 }

@@ -2,17 +2,13 @@
 #
 # Unauthorized copying of this file, via any medium is strictly prohibited
 # Proprietary and confidential
-#
-# Written by Konstantin Lepa <klepa@i-core.ru>, September 2018
 
 run:
   test: true
   silent: true
-
 linters-settings:
   govet:
     check-shadowing: true
-
 linters:
   disable-all: true
   enable:
@@ -27,3 +23,5 @@ linters:
     - interfacer
     - unconvert
     - govet
+issues:
+  exclude-use-default: false
