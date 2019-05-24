@@ -1,8 +1,8 @@
 /*
-Copyright (C) JSC iCore - All Rights Reserved
+Copyright (c) JSC iCore.
 
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
+This source code is licensed under the MIT license found in the
+LICENSE file in the root directory of this source tree.
 */
 
 package web
@@ -17,7 +17,7 @@ import (
 	"testing"
 
 	"github.com/andreyvit/diff"
-	"gopkg.i-core.ru/httputil"
+	"github.com/i-core/routegroup"
 )
 
 func TestHTMLRenderer(t *testing.T) {
@@ -170,7 +170,7 @@ func TestStaticHandler(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/static/"+tc.file, nil)
 			rr := httptest.NewRecorder()
 
-			router := httputil.NewRouter()
+			router := routegroup.NewRouter()
 			router.AddRoutes(NewStaticHandler(cnf), "/static")
 			router.ServeHTTP(rr, r)
 

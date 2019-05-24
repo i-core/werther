@@ -1,11 +1,11 @@
 /*
-Copyright (C) JSC iCore - All Rights Reserved
+Copyright (c) JSC iCore.
 
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
+This source code is licensed under the MIT license found in the
+LICENSE file in the root directory of this source tree.
 */
 
-package main // import "gopkg.i-core.ru/werther/cmd/werther"
+package main // import "github.com/i-core/werther/cmd/werther"
 
 import (
 	"flag"
@@ -13,27 +13,27 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/i-core/rlog"
+	"github.com/i-core/routegroup"
+	"github.com/i-core/werther/internal/identp"
+	"github.com/i-core/werther/internal/ldapclient"
+	"github.com/i-core/werther/internal/stat"
+	"github.com/i-core/werther/internal/web"
 	"github.com/justinas/nosurf"
 	"github.com/kelseyhightower/envconfig"
 	"go.uber.org/zap"
-	"gopkg.i-core.ru/httputil"
-	"gopkg.i-core.ru/logutil"
-	"gopkg.i-core.ru/werther/internal/identp"
-	"gopkg.i-core.ru/werther/internal/ldapclient"
-	"gopkg.i-core.ru/werther/internal/stat"
-	"gopkg.i-core.ru/werther/internal/web"
 )
 
-// Version will be filled at compile time.
-var Version = ""
+// version will be filled at compile time.
+var version = ""
 
 // Config is a server's configuration.
 type Config struct {
 	DevMode bool   `envconfig:"dev_mode" default:"false" desc:"a development mode"`
 	Listen  string `default:":8080" desc:"a host and port to listen on (<host>:<port>)"`
-	Web     web.Config
 	Identp  identp.Config
 	LDAP    ldapclient.Config
+	Web     web.Config
 }
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
 	flag.Parse()
 
 	if *verflag {
-		fmt.Println("werther", Version)
+		fmt.Println("werther", version)
 		os.Exit(0)
 	}
 
@@ -77,12 +77,12 @@ func main() {
 
 	ldap := ldapclient.New(cnf.LDAP)
 
-	router := httputil.NewRouter(nosurf.NewPure, logutil.RequestLog(log))
+	router := routegroup.NewRouter(nosurf.NewPure, rlog.NewMiddleware(log))
 	router.AddRoutes(web.NewStaticHandler(cnf.Web), "/static")
 	router.AddRoutes(identp.NewHandler(cnf.Identp, ldap, htmlRenderer), "/auth")
-	router.AddRoutes(stat.NewHandler(Version), "/stat")
+	router.AddRoutes(stat.NewHandler(version), "/stat")
 
 	log = log.Named("main")
-	log.Info("Werther started", zap.Any("config", cnf), zap.String("version", Version))
+	log.Info("Werther started", zap.Any("config", cnf), zap.String("version", version))
 	log.Fatal("Werther finished", zap.Error(http.ListenAndServe(cnf.Listen, router)))
 }

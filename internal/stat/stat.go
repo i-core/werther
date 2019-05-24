@@ -1,11 +1,18 @@
+/*
+Copyright (c) JSC iCore.
+
+This source code is licensed under the MIT license found in the
+LICENSE file in the root directory of this source tree.
+*/
+
 package stat
 
 import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/i-core/rlog"
 	"go.uber.org/zap"
-	"gopkg.i-core.ru/logutil"
 )
 
 // Handler provides HTTP handlers for health checking and versioning.
@@ -20,14 +27,14 @@ func NewHandler(version string) *Handler {
 
 // AddRoutes registers all required routes for the package stat.
 func (h *Handler) AddRoutes(apply func(m, p string, h http.Handler, mws ...func(http.Handler) http.Handler)) {
-	apply(http.MethodGet, "/health/alive", newHealthAliveAndReadyHandler())
-	apply(http.MethodGet, "/health/ready", newHealthAliveAndReadyHandler())
+	apply(http.MethodGet, "/health/alive", newHealthHandler())
+	apply(http.MethodGet, "/health/ready", newHealthHandler())
 	apply(http.MethodGet, "/version", newVersionHandler(h.version))
 }
 
-func newHealthAliveAndReadyHandler() http.HandlerFunc {
+func newHealthHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := logutil.FromContext(r.Context())
+		log := rlog.FromContext(r.Context())
 		resp := struct {
 			Status string `json:"status"`
 		}{
@@ -44,7 +51,7 @@ func newHealthAliveAndReadyHandler() http.HandlerFunc {
 
 func newVersionHandler(version string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := logutil.FromContext(r.Context())
+		log := rlog.FromContext(r.Context())
 		resp := struct {
 			Version string `json:"version"`
 		}{

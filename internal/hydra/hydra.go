@@ -1,8 +1,8 @@
 /*
-Copyright (C) JSC iCore - All Rights Reserved
+Copyright (c) JSC iCore.
 
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
+This source code is licensed under the MIT license found in the
+LICENSE file in the root directory of this source tree.
 */
 
 package hydra
@@ -18,6 +18,8 @@ import (
 )
 
 var (
+	// ErrChallengeMissed is an error that happens when a challenge is missed.
+	ErrChallengeMissed = errors.New("challenge missed")
 	// ErrUnauthenticated is an error that happens when authentication is failed.
 	ErrUnauthenticated = errors.New("unauthenticated")
 	// ErrChallengeNotFound is an error that happens when an unknown challenge is used.
@@ -43,6 +45,9 @@ type ReqInfo struct {
 }
 
 func initiateRequest(typ reqType, hydraURL, challenge string) (*ReqInfo, error) {
+	if challenge == "" {
+		return nil, ErrChallengeMissed
+	}
 	ref, err := url.Parse(fmt.Sprintf("oauth2/auth/requests/%[1]s?%[1]s_challenge=%s", string(typ), challenge))
 	if err != nil {
 		return nil, err
@@ -72,6 +77,9 @@ func initiateRequest(typ reqType, hydraURL, challenge string) (*ReqInfo, error) 
 }
 
 func acceptRequest(typ reqType, hydraURL, challenge string, data interface{}) (string, error) {
+	if challenge == "" {
+		return "", ErrChallengeMissed
+	}
 	ref, err := url.Parse(fmt.Sprintf("oauth2/auth/requests/%[1]s/accept?%[1]s_challenge=%s", string(typ), challenge))
 	if err != nil {
 		return "", err

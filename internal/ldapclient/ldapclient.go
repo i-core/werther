@@ -1,8 +1,8 @@
 /*
-Copyright (C) JSC iCore - All Rights Reserved
+Copyright (c) JSC iCore.
 
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
+This source code is licensed under the MIT license found in the
+LICENSE file in the root directory of this source tree.
 */
 
 package ldapclient
@@ -17,22 +17,44 @@ import (
 	"time"
 
 	"github.com/coocood/freecache"
+	"github.com/i-core/rlog"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"gopkg.i-core.ru/logutil"
 	ldap "gopkg.in/ldap.v2"
 )
+
+var (
+	// errInvalidCredentials is an error that happens when a user's password is invalid.
+	errInvalidCredentials = fmt.Errorf("invalid credentials")
+	// errConnectionTimeout is an error that happens when no one LDAP endpoint responds.
+	errConnectionTimeout = fmt.Errorf("connection timeout")
+	// errMissedUsername is an error that happens
+	errMissedUsername = errors.New("username is missed")
+	// errUnknownUsername is an error that happens
+	errUnknownUsername = errors.New("unknown username")
+)
+
+type conn interface {
+	Bind(bindDN, password string) error
+	SearchUser(user string, attrs ...string) ([]map[string]interface{}, error)
+	SearchUserRoles(user string, attrs ...string) ([]map[string]interface{}, error)
+	Close()
+}
+
+type connector interface {
+	Connect(ctx context.Context, addr string) (conn, error)
+}
 
 // Config is a LDAP configuration.
 type Config struct {
 	Endpoints  []string          `envconfig:"endpoints" required:"true" desc:"a LDAP's server URLs as \"<address>:<port>\""`
-	BaseDN     string            `envconfig:"basedn" required:"true" desc:"a LDAP base DN for searching users"`
 	BindDN     string            `envconfig:"binddn" desc:"a LDAP bind DN"`
 	BindPass   string            `envconfig:"bindpw" json:"-" desc:"a LDAP bind password"`
+	BaseDN     string            `envconfig:"basedn" required:"true" desc:"a LDAP base DN for searching users"`
+	AttrClaims map[string]string `envconfig:"attr_claims" default:"name:name,sn:family_name,givenName:given_name,mail:email" desc:"a mapping of LDAP attributes to OpenID connect claims"`
 	RoleBaseDN string            `envconfig:"role_basedn" required:"true" desc:"a LDAP base DN for searching roles"`
-	RoleAttr   string            `envconfig:"role_attr" default:"description" desc:"a LDAP attribute for role's name"`
-	RoleClaim  string            `ignored:"true"` // is custom OIDC claim name for roles' list
-	AttrClaims map[string]string `envconfig:"attr_claims" default:"name:name,sn:family_name,givenName:given_name,mail:email" desc:"a mapping of LDAP attributes to OIDC claims"`
+	RoleAttr   string            `envconfig:"role_attr" default:"description" desc:"a LDAP group's attribute that contains a role's name"`
+	RoleClaim  string            `envconfig:"role_claim" default:"https://github.com/i-core/werther/claims/roles" desc:"a name of an OpenID Connect claim that contains user roles"`
 	CacheSize  int               `envconfig:"cache_size" default:"512" desc:"a user info cache's size in KiB"`
 	CacheTTL   time.Duration     `envconfig:"cache_ttl" default:"30m" desc:"a user info cache TTL"`
 }
@@ -40,17 +62,16 @@ type Config struct {
 // Client is a LDAP client (compatible with Active Directory).
 type Client struct {
 	Config
-	cache *freecache.Cache
+	connector connector
+	cache     *freecache.Cache
 }
 
 // New creates a new LDAP client.
 func New(cnf Config) *Client {
-	if cnf.RoleClaim == "" {
-		cnf.RoleClaim = "http://i-core.ru/claims/roles"
-	}
 	return &Client{
-		Config: cnf,
-		cache:  freecache.NewCache(cnf.CacheSize * 1024),
+		Config:    cnf,
+		connector: &ldapConnector{BaseDN: cnf.BaseDN, RoleBaseDN: cnf.RoleBaseDN},
+		cache:     freecache.NewCache(cnf.CacheSize * 1024),
 	}
 }
 
@@ -64,10 +85,10 @@ func (cli *Client) Authenticate(ctx context.Context, username, password string) 
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
 
-	cn, ok := <-cli.dialTCP(ctx)
+	cn, ok := <-cli.connect(ctx)
 	cancel()
 	if !ok {
-		return false, errors.New("connection timeout")
+		return false, errConnectionTimeout
 	}
 	defer cn.Close()
 
@@ -81,7 +102,7 @@ func (cli *Client) Authenticate(ctx context.Context, username, password string) 
 	}
 
 	if err := cn.Bind(details["dn"].(string), password); err != nil {
-		if ldapErr, ok := err.(*ldap.Error); ok && ldapErr.ResultCode == ldap.LDAPResultInvalidCredentials {
+		if err == errInvalidCredentials {
 			return false, nil
 		}
 		return false, err
@@ -89,85 +110,20 @@ func (cli *Client) Authenticate(ctx context.Context, username, password string) 
 
 	// Clear the claims' cache because of possible re-authentication. We don't want stale claims after re-login.
 	if ok := cli.cache.Del([]byte(username)); ok {
-		log := logutil.FromContext(ctx)
+		log := rlog.FromContext(ctx)
 		log.Debug("Cleared user's OIDC claims in the cache")
 	}
 
 	return true, nil
 }
 
-func (cli *Client) dialTCP(ctx context.Context) <-chan *ldap.Conn {
-	var (
-		wg sync.WaitGroup
-		ch = make(chan *ldap.Conn)
-	)
-	wg.Add(len(cli.Endpoints))
-	for _, addr := range cli.Endpoints {
-		go func(addr string) {
-			defer wg.Done()
-
-			log := logutil.FromContext(ctx).Sugar()
-
-			d := net.Dialer{Timeout: ldap.DefaultTimeout}
-			tcpcn, err := d.DialContext(ctx, "tcp", addr)
-			if err != nil {
-				log.Debug("Failed to create a LDAP connection", "address", addr)
-				return
-			}
-			ldapcn := ldap.NewConn(tcpcn, false)
-			ldapcn.Start()
-			select {
-			case <-ctx.Done():
-				ldapcn.Close()
-				log.Debug("a LDAP connection is cancelled", "address", addr)
-				return
-			case ch <- ldapcn:
-			}
-		}(addr)
-	}
-	go func() {
-		wg.Wait()
-		close(ch)
-	}()
-	return ch
-}
-
-// findBasicUserDetails finds user's LDAP attributes that were specified. It returns nil if no such user.
-func (cli *Client) findBasicUserDetails(cn *ldap.Conn, username string, attrs []string) (map[string]interface{}, error) {
-	if cli.BindDN != "" {
-		// We need to login to a LDAP server with a service account for retrieving user data.
-		if err := cn.Bind(cli.BindDN, cli.BindPass); err != nil {
-			return nil, err
-		}
-	}
-
-	query := fmt.Sprintf(
-		"(&(|(objectClass=organizationalPerson)(objectClass=inetOrgPerson))"+
-			"(|(uid=%[1]s)(mail=%[1]s)(userPrincipalName=%[1]s)(sAMAccountName=%[1]s)))", username)
-	entries, err := cli.searchEntries(cn, cli.BaseDN, query, attrs...)
-	if err != nil {
-		return nil, err
-	}
-	if len(entries) != 1 {
-		// We didn't find the user.
-		return nil, nil
-	}
-
-	var (
-		entry   = entries[0]
-		details = make(map[string]interface{})
-	)
-	for _, attr := range attrs {
-		if v, ok := entry[attr]; ok {
-			details[attr] = v
-		}
-	}
-	return details, nil
-}
-
 // FindOIDCClaims finds all OIDC claims for a user.
 func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[string]interface{}, error) {
-	log := logutil.FromContext(ctx).Sugar()
+	if username == "" {
+		return nil, errMissedUsername
+	}
+
+	log := rlog.FromContext(ctx).Sugar()
 
 	// Retrieving from LDAP is slow. So, we try to get claims for the given username from the cache.
 	switch cdata, err := cli.cache.Get([]byte(username)); err {
@@ -190,10 +146,10 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
 
-	cn, ok := <-cli.dialTCP(ctx)
+	cn, ok := <-cli.connect(ctx)
 	cancel()
 	if !ok {
-		return nil, errors.New("connection timeout")
+		return nil, errConnectionTimeout
 	}
 	defer cn.Close()
 
@@ -208,11 +164,11 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 		return nil, err
 	}
 	if details == nil {
-		return nil, errors.New("unknown username")
+		return nil, errUnknownUsername
 	}
 	log.Infow("Retrieved user's info from LDAP", "details", details)
 
-	// Transform the retrived attributes to corresponding claims.
+	// Transform the retrieved attributes to corresponding claims.
 	claims := make(map[string]interface{})
 	for attr, v := range details {
 		if claim, ok := cli.AttrClaims[attr]; ok {
@@ -222,16 +178,15 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 
 	// User's roles is stored in LDAP as groups. We find all groups in a role's DN
 	// that include the user as a member.
-	query := fmt.Sprintf("(&(objectClass=group)(member=%s))", details["dn"])
-	entries, err := cli.searchEntries(cn, cli.RoleBaseDN, query, "dn", cli.RoleAttr)
+	entries, err := cn.SearchUserRoles(fmt.Sprintf("%s", details["dn"]), "dn", cli.RoleAttr)
 	if err != nil {
 		return nil, err
 	}
 
-	roles := make(map[string][]string)
+	roles := make(map[string]interface{})
 	for _, entry := range entries {
-		roleDN := entry["dn"].(string)
-		if roleDN == "" {
+		roleDN, ok := entry["dn"].(string)
+		if !ok || roleDN == "" {
 			log.Infow("No required LDAP attribute for a role", "ldapAttribute", "dn", "entry", entry)
 			continue
 		}
@@ -248,14 +203,19 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 		}
 		// The DN without the role's base DN must contain a CN and OU
 		// where the CN is for uniqueness only, and the OU is an application id.
-		v := strings.Split(roleDN[:n-k-1], ",")
-		if len(v) != 2 {
+		path := strings.Split(roleDN[:n-k-1], ",")
+		if len(path) != 2 {
 			log.Infow("A role's DN without the role's base DN must contain two nodes only",
 				"roleBaseDN", cli.RoleBaseDN, "roleDN", roleDN)
 			continue
 		}
-		appID := v[1][len("OU="):]
-		roles[appID] = append(roles[appID], entry[cli.RoleAttr].(string))
+		appID := path[1][len("OU="):]
+
+		var appRoles []interface{}
+		if v := roles[appID]; v != nil {
+			appRoles = v.([]interface{})
+		}
+		roles[appID] = append(appRoles, entry[cli.RoleAttr])
 	}
 	claims[cli.RoleClaim] = roles
 
@@ -271,11 +231,114 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 	return claims, nil
 }
 
+func (cli *Client) connect(ctx context.Context) <-chan conn {
+	var (
+		wg sync.WaitGroup
+		ch = make(chan conn)
+	)
+	wg.Add(len(cli.Endpoints))
+	for _, addr := range cli.Endpoints {
+		go func(addr string) {
+			defer wg.Done()
+
+			log := rlog.FromContext(ctx).Sugar()
+			cn, err := cli.connector.Connect(ctx, addr)
+			if err != nil {
+				log.Debug("Failed to create a LDAP connection", "address", addr)
+				return
+			}
+			select {
+			case <-ctx.Done():
+				cn.Close()
+				log.Debug("a LDAP connection is cancelled", "address", addr)
+				return
+			case ch <- cn:
+			}
+		}(addr)
+	}
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+	return ch
+}
+
+// findBasicUserDetails finds user's LDAP attributes that were specified. It returns nil if no such user.
+func (cli *Client) findBasicUserDetails(cn conn, username string, attrs []string) (map[string]interface{}, error) {
+	if cli.BindDN != "" {
+		// We need to login to a LDAP server with a service account for retrieving user data.
+		if err := cn.Bind(cli.BindDN, cli.BindPass); err != nil {
+			return nil, errors.Wrap(err, "failed to login to a LDAP woth a service account")
+		}
+	}
+
+	entries, err := cn.SearchUser(username, attrs...)
+	if err != nil {
+		return nil, err
+	}
+	if len(entries) != 1 {
+		// We didn't find the user.
+		return nil, nil
+	}
+
+	var (
+		entry   = entries[0]
+		details = make(map[string]interface{})
+	)
+	for _, attr := range attrs {
+		if v, ok := entry[attr]; ok {
+			details[attr] = v
+		}
+	}
+	return details, nil
+}
+
+type ldapConnector struct {
+	BaseDN     string
+	RoleBaseDN string
+}
+
+func (c *ldapConnector) Connect(ctx context.Context, addr string) (conn, error) {
+	d := net.Dialer{Timeout: ldap.DefaultTimeout}
+	tcpcn, err := d.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	ldapcn := ldap.NewConn(tcpcn, false)
+	ldapcn.Start()
+	return &ldapConn{Conn: ldapcn, BaseDN: c.BaseDN, RoleBaseDN: c.RoleBaseDN}, nil
+}
+
+type ldapConn struct {
+	*ldap.Conn
+	BaseDN     string
+	RoleBaseDN string
+}
+
+func (c *ldapConn) Bind(bindDN, password string) error {
+	err := c.Conn.Bind(bindDN, password)
+	if ldapErr, ok := err.(*ldap.Error); ok && ldapErr.ResultCode == ldap.LDAPResultInvalidCredentials {
+		return errInvalidCredentials
+	}
+	return err
+}
+
+func (c *ldapConn) SearchUser(user string, attrs ...string) ([]map[string]interface{}, error) {
+	query := fmt.Sprintf(
+		"(&(|(objectClass=organizationalPerson)(objectClass=inetOrgPerson))"+
+			"(|(uid=%[1]s)(mail=%[1]s)(userPrincipalName=%[1]s)(sAMAccountName=%[1]s)))", user)
+	return c.searchEntries(c.BaseDN, query, attrs)
+}
+
+func (c *ldapConn) SearchUserRoles(user string, attrs ...string) ([]map[string]interface{}, error) {
+	query := fmt.Sprintf("(&(objectClass=group)(member=%s))", user)
+	return c.searchEntries(c.RoleBaseDN, query, attrs)
+}
+
 // searchEntries executes a LDAP query, and returns a result as entries where each entry is mapping of LDAP attributes.
-func (cli *Client) searchEntries(cn *ldap.Conn, baseDN, query string, attrs ...string) ([]map[string]interface{}, error) {
-	res, err := cn.Search(ldap.NewSearchRequest(
-		baseDN, ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false, query, attrs, nil,
-	))
+func (c *ldapConn) searchEntries(baseDN, query string, attrs []string) ([]map[string]interface{}, error) {
+	req := ldap.NewSearchRequest(baseDN, ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false, query, attrs, nil)
+	res, err := c.Search(req)
 	if err != nil {
 		return nil, err
 	}

@@ -1,8 +1,8 @@
 /*
-Copyright (C) JSC iCore - All Rights Reserved
+Copyright (c) JSC iCore.
 
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
+This source code is licensed under the MIT license found in the
+LICENSE file in the root directory of this source tree.
 */
 
 // Package identp is an implementation of [Login and Consent Flow](https://www.ory.sh/docs/hydra/oauth2)
@@ -16,20 +16,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/i-core/rlog"
+	"github.com/i-core/werther/internal/hydra"
 	"github.com/justinas/nosurf"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"gopkg.i-core.ru/logutil"
-	"gopkg.i-core.ru/werther/internal/hydra"
 )
 
 const loginTmplName = "login.tmpl"
 
 // Config is a Hydra configuration.
 type Config struct {
-	HydraURL    string            `envconfig:"hydra_url" required:"true" desc:"a server admin URL of ORY Hydra"`
-	SessionTTL  time.Duration     `envconfig:"session_ttl" default:"24h" desc:"a session TTL"`
-	ClaimScopes map[string]string `envconfig:"claim_scopes" default:"name:profile,family_name:profile,given_name:profile,email:email,http%3A%2F%2Fi-core.ru%2Fclaims%2Froles:roles" desc:"a mapping of OIDC claims to scopes (all claims are URL encoded)"`
+	HydraURL    string            `envconfig:"hydra_url" required:"true" desc:"an admin URL of ORY Hydra Server"`
+	SessionTTL  time.Duration     `envconfig:"session_ttl" default:"24h" desc:"a user session's TTL"`
+	ClaimScopes map[string]string `envconfig:"claim_scopes" default:"name:profile,family_name:profile,given_name:profile,email:email,http%3A%2F%2Ffithub.com%2Fi-core.ru%2Fwerther%2Fclaims%2Froles:roles" desc:"a mapping of OpenID Connect claims to scopes (all claims are URL encoded)"`
 }
 
 // UserManager is an interface that is used for authentication and providing user's claims.
@@ -105,7 +105,7 @@ type oa2LoginReqProcessor interface {
 
 func newLoginStartHandler(rproc oa2LoginReqProcessor, tmplRenderer TemplateRenderer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := logutil.FromContext(r.Context()).Sugar()
+		log := rlog.FromContext(r.Context()).Sugar()
 		challenge := r.URL.Query().Get("login_challenge")
 		if challenge == "" {
 			log.Debug("No login challenge that is needed by the OAuth2 provider")
@@ -157,7 +157,7 @@ func newLoginStartHandler(rproc oa2LoginReqProcessor, tmplRenderer TemplateRende
 
 func newLoginEndHandler(ra oa2LoginReqAcceptor, auther authenticator, tmplRenderer TemplateRenderer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := logutil.FromContext(r.Context()).Sugar()
+		log := rlog.FromContext(r.Context()).Sugar()
 		r.ParseForm()
 
 		challenge := r.Form.Get("login_challenge")
@@ -223,7 +223,7 @@ type oa2ConsentReqProcessor interface {
 
 func newConsentHandler(rproc oa2ConsentReqProcessor, cfinder oidcClaimsFinder, claimScopes map[string]string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := logutil.FromContext(r.Context()).Sugar()
+		log := rlog.FromContext(r.Context()).Sugar()
 
 		challenge := r.URL.Query().Get("consent_challenge")
 		if challenge == "" {
@@ -297,7 +297,7 @@ type oa2LogoutReqProcessor interface {
 
 func newLogoutHandler(rproc oa2LogoutReqProcessor) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := logutil.FromContext(r.Context()).Sugar()
+		log := rlog.FromContext(r.Context()).Sugar()
 
 		challenge := r.URL.Query().Get("logout_challenge")
 		if challenge == "" {

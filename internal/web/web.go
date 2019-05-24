@@ -1,8 +1,8 @@
 /*
-Copyright (C) JSC iCore - All Rights Reserved
+Copyright (c) JSC iCore.
 
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
+This source code is licensed under the MIT license found in the
+LICENSE file in the root directory of this source tree.
 */
 
 //go:generate go run github.com/kevinburke/go-bindata/go-bindata -o templates.go -pkg web -prefix templates/ templates/...
@@ -20,8 +20,8 @@ import (
 	"path"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
+	"github.com/i-core/routegroup"
 	"github.com/pkg/errors"
-	"gopkg.i-core.ru/httputil"
 )
 
 // The file systems provide templates and their resources that are stored in the application's internal assets.
@@ -39,7 +39,7 @@ type Config struct {
 
 // HTMLRenderer renders a HTML page from a Go template.
 //
-// A template's source for a HTML page should contains four blocks:
+// A template's source for a HTML page should contain four blocks:
 // "title", "style", "js", "content". Block "title" should contain the content of the "title" HTML tag.
 // Block "style" should contain "link" HTML tags that are injected to the head of the page.
 // Block "js" should contain "script" HTML tags that are injected to the bottom of the page's body.
@@ -149,7 +149,7 @@ func NewStaticHandler(cnf Config) *StaticHandler {
 func (h *StaticHandler) AddRoutes(apply func(m, p string, h http.Handler, mws ...func(http.Handler) http.Handler)) {
 	fileServer := http.FileServer(h.fs)
 	apply(http.MethodGet, "/*filepath", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.URL.Path = httputil.PathParam(r.Context(), "filepath")
+		r.URL.Path = routegroup.PathParam(r.Context(), "filepath")
 		fileServer.ServeHTTP(w, r)
 	}))
 }
