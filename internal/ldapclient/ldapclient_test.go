@@ -30,8 +30,8 @@ var (
 			"b":    "valB",
 			"c":    "valC",
 			"roles": []map[string]interface{}{
-				{"dn": "CN=role1,OU=app1,OU=test,DC=local", "test-roles-attr": "r1"},
-				{"dn": "CN=role2,OU=app1,OU=test,DC=local", "test-roles-attr": "r2"},
+				{"dn": "cn=role1,ou=app1,ou=test,dc=local", "test-roles-attr": "r1"},
+				{"dn": "cn=role2,ou=app1,ou=test,dc=local", "test-roles-attr": "r2"},
 			},
 		},
 		{
@@ -41,10 +41,10 @@ var (
 			"b":    "valB",
 			"c":    "valC",
 			"roles": []map[string]interface{}{
-				{"dn": "CN=role1,OU=app1,OU=test,DC=local", "test-roles-attr": "r1"},
-				{"dn": "CN=role2,OU=app1,OU=test,DC=local", "test-roles-attr": "r2"},
-				{"dn": "CN=role3,OU=app2,OU=test,DC=local", "test-roles-attr": "r3"},
-				{"dn": "CN=role4,OU=app2,OU=test,DC=local", "test-roles-attr": "r4"},
+				{"dn": "cn=role1,ou=app1,ou=test,dc=local", "test-roles-attr": "r1"},
+				{"dn": "cn=role2,ou=app1,ou=test,dc=local", "test-roles-attr": "r2"},
+				{"dn": "cn=role3,ou=app2,ou=test,dc=local", "test-roles-attr": "r3"},
+				{"dn": "cn=role4,ou=app2,ou=test,dc=local", "test-roles-attr": "r4"},
 			},
 		},
 		{
@@ -54,7 +54,7 @@ var (
 			"b":    "valB",
 			"c":    "valC",
 			"roles": []map[string]interface{}{
-				{"dn": "CN=role1,OU=app1,OU=test,DC=local", "test-roles-attr": "r1"},
+				{"dn": "cn=role1,ou=app1,ou=test,dc=local", "test-roles-attr": "r1"},
 				{"test-roles-attr": "r2"},
 			},
 		},
@@ -65,8 +65,8 @@ var (
 			"b":    "valB",
 			"c":    "valC",
 			"roles": []map[string]interface{}{
-				{"dn": "CN=role1,OU=app1,OU=test,DC=local", "test-roles-attr": "r1"},
-				{"dn": "CN=role2,OU=app1,OU=test,DC=local"},
+				{"dn": "cn=role1,ou=app1,ou=test,dc=local", "test-roles-attr": "r1"},
+				{"dn": "cn=role2,ou=app1,ou=test,dc=local"},
 			},
 		},
 		{
@@ -76,7 +76,7 @@ var (
 			"b":    "valB",
 			"c":    "valC",
 			"roles": []map[string]interface{}{
-				{"dn": "CN=role1,OU=test,DC=local", "test-roles-attr": "r1"},
+				{"dn": "cn=role1,ou=test,dc=local", "test-roles-attr": "r1"},
 			},
 		},
 		{
@@ -375,7 +375,7 @@ func TestFindOIDCClaims(t *testing.T) {
 				BindDN:     tc.bindDN,
 				BindPass:   tc.bindPass,
 				AttrClaims: tc.attrClaims,
-				RoleBaseDN: "OU=test,DC=local",
+				RoleBaseDN: "ou=test,dc=local",
 				RoleClaim:  "test-roles-claim",
 				RoleAttr:   "test-roles-attr",
 			})
@@ -409,7 +409,7 @@ func TestClaimsCache(t *testing.T) {
 	client := New(Config{
 		Endpoints:  connector.Endpoints(),
 		AttrClaims: map[string]string{"dn": "name", "a": "claimA", "d": "claimD"},
-		RoleBaseDN: "OU=test,DC=local",
+		RoleBaseDN: "ou=test,dc=local",
 		RoleClaim:  "test-roles-claim",
 		RoleAttr:   "test-roles-attr",
 	})

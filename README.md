@@ -1,6 +1,6 @@
 # Werther <sup>[1](#myfootnote1)</sup>
 
-[![GoDoc][doc-img]][doc] [![Build Status][build-img]][build] [![codecov][codecov-img]][codecov]
+[![GoDoc][doc-img]][doc] [![Build Status][build-img]][build] [![codecov][codecov-img]][codecov] [![Go Report Card][goreport-img]][goreport]
 
 Werther is an Identity Provider for [ORY Hydra][hydra] over [LDAP][ldap].
 It implements [Login And Consent Flow][hydra-login-consent] and provides basic UI.
@@ -30,10 +30,10 @@ ORY Hydra v1.0.0-rc.12 or higher.
 
 
 - [Installing](#installing)
-- [Usage](#usage)
 - [Configuration](#configuration)
 - [User roles](#user-roles)
 - [UI customization](#ui-customization)
+- [Example](#example)
 - [Resources](#resources)
 - [Footnotes](#footnotes)
 - [Contributing](#contributing)
@@ -46,7 +46,7 @@ ORY Hydra v1.0.0-rc.12 or higher.
 ### From Docker
 
 ```bash
-docker pull icoreru/werter
+docker pull icoreru/werther
 ```
 
 ### From sources
@@ -54,44 +54,6 @@ docker pull icoreru/werter
 ```bash
 go install ./...
 ```
-
-## Usage
-
-1. Create a network:
-    ```
-    docker network create hydra-net
-    ```
-
-2. Run ORY Hydra:
-    ```
-    docker run --network hydra-net -d --restart always --name hydra                                          \
-        -p 4444:4444                                                                                         \
-        -p 4445:4445                                                                                         \
-        -e URLS_SELF_ISSUER=http://localhost:4444                                                            \
-        -e URLS_SELF_PUBLIC=http://localhost:4444                                                            \
-        -e URLS_LOGIN=http://localhost:8080/auth/login                                                       \
-        -e URLS_CONSENT=http://localhost:8080/auth/consent                                                   \
-        -e URLS_LOGOUT=http://localhost:8080/auth/logout                                                     \
-        -e WEBFINGER_OIDC_DISCOVERY_SUPPORTED_SCOPES=profile,email,phone                                     \
-        -e WEBFINGER_OIDC_DISCOVERY_SUPPORTED_CLAIMS=name,family_name,given_name,nickname,email,phone_number \
-        -e DSN=memory                                                                                        \
-        oryd/hydra:v1.0.0-rc.12 serve all
-    ```
-
-    Look for details in [ORY Hydra Configuration][hydra-doc-config] and [ORY Hydra Documentation][hydra-doc].
-
-3. Run Werther:
-    ```
-    docker run --network hydra-net -d --restart always --name werther                    \
-          -p 8080:8080                                                                   \
-          -e WERTHER_IDENTP_HYDRA_URL=http://hydra:4445                                  \
-          -e WERTHER_LDAP_ENDPOINTS=icdc0.example.local:389,icdc1.example.local:389      \
-          -e WERTHER_LDAP_BINDDN=<BINDDN>                                                \
-          -e WERTHER_LDAP_BINDPW=<BINDDN_PASSWORD>                                       \
-          -e WERTHER_LDAP_BASEDN="DC=example,DC=local"                                   \
-          -e WERTHER_LDAP_ROLE_BASEDN="OU=AppRoles,OU=Domain Groups,DC=example,DC=local" \
-          icoreru/werther
-    ```
 
 ## Configuration
 
@@ -113,16 +75,16 @@ For example, create an OU that repserents an application, and then in the create
 create groups that represent application's roles:
 
 ```
-DC=local
-|-- OU=Domain Groups
-    |-- OU=AppRoles
-        |-- OU=App1
-            |-- CN=app1_role1 (objectClass="group", description="role1")
-            |-- CN=app1_role2 (objectClass="group", description="role2")
+dc=com
+|-- dc=example
+    |-- ou=AppRoles
+        |-- ou=App1
+            |-- cn=app1_role1 (objectClass="group", description="role1")
+            |-- cn=app1_role2 (objectClass="group", description="role2")
 ```
 
 Run Werther with the environment variable `WERTHER_LDAP_ROLE_DN`
-that equals to `OU=AppRoles,OU=Domain Groups,DC=local`.
+that equals to `ou=AppRoles,dc=example,dc=com`.
 
 In the above example Werther returns user's roles as a value
 of the user role's claim `https://github.com/i-core/werther/claims/roles`.
@@ -142,23 +104,23 @@ For more details about claims naming see [OpenID Connect Core 1.0][oidc-spec-add
 For example, when we want to configure multiple applications or several environments for the same application.
 
 ```
-DC=local
-|-- OU=Domain Groups
-    |-- OU=AppRoles
-        |-- OU=Test
-            |-- OU=App1
-                |-- CN=test_app1_role1 (objectClass="group", description="role1")
-                |-- CN=test_app1_role2 (objectClass="group", description="role2")
-            |-- OU=App2
-                |-- CN=test_app2_role1 (objectClass="group",description-"role1")
-                |-- CN=test_app2_role2 (objectClass="group",description-"role2")
-        |-- OU=Dev
-            |-- OU=App1
-                |-- CN=dev_app1_role1 (objectClass="group", description="role1")
-                |-- CN=dev_app1_role3 (objectClass="group", description="role3")
-            |-- OU=App2
-                |-- CN=dev_app2_role1 (objectClass="group",description-"role1")
-                |-- CN=dev_app2_role4 (objectClass="group",description-"role4")
+dc=com
+|-- dc=example
+    |-- ou=AppRoles
+        |-- ou=Test
+            |-- ou=App1
+                |-- cn=test_app1_role1 (objectClass="group", description="role1")
+                |-- cn=test_app1_role2 (objectClass="group", description="role2")
+            |-- ou=App2
+                |-- cn=test_app2_role1 (objectClass="group",description-"role1")
+                |-- cn=test_app2_role2 (objectClass="group",description-"role2")
+        |-- ou=Dev
+            |-- ou=App1
+                |-- cn=dev_app1_role1 (objectClass="group", description="role1")
+                |-- cn=dev_app1_role3 (objectClass="group", description="role3")
+            |-- ou=App2
+                |-- cn=dev_app2_role1 (objectClass="group",description-"role1")
+                |-- cn=dev_app2_role4 (objectClass="group",description-"role4")
 ```
 
 Active Directory requires unique CNs in a domain. But in Active Directory
@@ -168,7 +130,7 @@ A name of a LDAP attribute is specified using the environment variable `WERTHER_
 and has the default value `description`.
 
 In the above example, Werther returns a response that contains the next roles:
-* when the environment variable `WERTHER_LDAP_ROLE_DN` equals to `OU=Test,OU=AppRoles,OU=Domain Groups,DC=local`:
+* when the environment variable `WERTHER_LDAP_ROLE_DN` equals to `ou=Test,ou=AppRoles,dc=example,dc=com`:
     ```json
     {
         "https://github.com/i-core/werther/claims/roles": {
@@ -177,7 +139,7 @@ In the above example, Werther returns a response that contains the next roles:
         }
     }
     ```
-* when the environment variable `WERTHER_LDAP_ROLE_DN` equals to `OU=Dev,OU=AppRoles,OU=Domain Groups,DC=local`:
+* when the environment variable `WERTHER_LDAP_ROLE_DN` equals to `ou=Dev,ou=AppRoles,dc=example,dc=com`:
     ```json
     {
         "https://github.com/i-core/werther/claims/roles": {
@@ -191,21 +153,7 @@ In the above example, Werther returns a response that contains the next roles:
 
 Werther uses the Go templates to render UI pages.
 To customize the UI you should create a directory that contains UI pages' templates.
-After that you should set the directory path to the environment variable `WERTHER_WEB_DIR`:
-
-```bash
-docker run --network hydra-net -d --restart always --name werther                      \
-        -p 8080:8080                                                                   \
-        -v /opt/werther/web:/path/to/custom-login-page/dir                             \
-        -e WERTHER_IDENTP_HYDRA_URL=http://hydra:4445                                  \
-        -e WERTHER_LDAP_ENDPOINTS=icdc0.example.local:389,icdc1.example.local:389      \
-        -e WERTHER_LDAP_BINDDN=<BINDDN>                                                \
-        -e WERTHER_LDAP_BINDPW=<BINDDN_PASSWORD>                                       \
-        -e WERTHER_LDAP_BASEDN="DC=example,DC=local"                                   \
-        -e WERTHER_LDAP_ROLE_BASEDN="OU=AppRoles,OU=Domain Groups,DC=example,DC=local" \
-        -e WERTHER_WEB_DIR=/opt/werther/web
-        icoreru/werther
-```
+After that you should set the directory path to the environment variable `WERTHER_WEB_DIR`.
 
 ### Custom login page
 
@@ -222,11 +170,137 @@ they must be placed in a subdirectory called `static`.
 
 For a full example of a login page's template see [source code](internal/web/templates).
 
+## Example
+
+1. Create file `ldap.ldif`:
+    ```
+    dn: uid=kolya_gerasyimov,ou=Users,dc=example,dc=com
+    objectClass: inetOrgPerson
+    cn: Kolya Gerasyimov
+    sn: Gerasyimov
+    uid: kolya_gerasyimov
+    userPassword: 123
+    mail: kolya_gerasyimov@example.com
+    ou: Users
+
+    dn: ou=AppRoles,dc=example,dc=com
+    objectClass: organizationalunit
+    ou: AppRoles
+    description: AppRoles
+
+    dn: ou=App1,ou=AppRoles,dc=example,dc=com
+    objectClass: organizationalunit
+    ou: App1
+    description: App1
+
+    dn: cn=traveler,ou=App1,ou=AppRoles,dc=example,dc=com
+    objectClass: groupofnames
+    cn: traveler
+    description: traveler
+    member: uid=kolya_gerasyimov,ou=Users,dc=example,dc=com
+    ```
+
+2. Create file `docker-compose.yml`:
+    ```yaml
+    version: "3"
+    services:
+    hydra-client:
+        image: oryd/hydra:v1.0.0-rc.12
+        environment:
+            HYDRA_ADMIN_URL: http://hydra:4445
+        command:
+            - clients
+            - create
+            - --skip-tls-verify
+            - --id
+            - test-client
+            - --secret
+            - test-secret
+            - --response-types
+            - id_token,token,"id_token token"
+            - --grant-types
+            - implicit
+            - --scope
+            - openid,profile,email
+            - --callbacks
+            - http://localhost:3000
+            - --post-logout-callbacks
+            - http://localhost:3000/post-logout-callback
+        networks:
+            - hydra-net
+        deploy:
+            restart_policy:
+                condition: none
+        depends_on:
+            - hydra
+    hydra:
+        image: oryd/hydra:v1.0.0-rc.12
+        environment:
+            URLS_SELF_ISSUER: http://localhost:4444
+            URLS_SELF_PUBLIC: http://localhost:4444
+            URLS_LOGIN: http://localhost:8080/auth/login
+            URLS_CONSENT: http://localhost:8080/auth/consent
+            URLS_LOGOUT: http://localhost:8080/auth/logout
+            WEBFINGER_OIDC_DISCOVERY_SUPPORTED_SCOPES: profile,email,phone
+            WEBFINGER_OIDC_DISCOVERY_SUPPORTED_CLAIMS: name,family_name,given_name,nickname,email,phone_number
+            DSN: memory
+        command: serve all --dangerous-force-http
+        networks:
+            - hydra-net
+        ports:
+            - "4444:4444"
+            - "4445:4445"
+        deploy:
+            restart_policy:
+                condition: on-failure
+        depends_on:
+            - werther
+    werther:
+        image: icoreru/werther:v1.0.0
+        environment:
+            WERTHER_IDENTP_HYDRA_URL: http://hydra:4445
+            WERTHER_LDAP_ENDPOINTS: ldap:389
+            WERTHER_LDAP_BINDDN: cn=admin,dc=example,dc=com
+            WERTHER_LDAP_BINDPW: password
+            WERTHER_LDAP_BASEDN: "dc=example,dc=com"
+            WERTHER_LDAP_ROLE_BASEDN: "ou=AppRoles,dc=example,dc=com"
+        networks:
+            - hydra-net
+        ports:
+            - "8080:8080"
+        deploy:
+            restart_policy:
+                condition: on-failure
+        depends_on:
+            - ldap
+    ldap:
+        image: pgarrett/ldap-alpine
+        volumes:
+            - "./ldap.ldif:/ldif/ldap.ldif"
+        networks:
+            - hydra-net
+        ports:
+            - "389:389"
+        deploy:
+            restart_policy:
+                condition: on-failure
+    networks:
+        hydra-net:
+    ```
+
+3. Run the command:
+    ```bash
+    docker stack deploy docker-compose.yml auth
+    ```
+
+4. Open the browser with http://localhost:4444/oauth2/auth?client_id=test-client&response_type=token&scope=openid%20profile%20email&state=12345678.
+
 ## Resources
 
 - [Introduction to ORY Hydra, OAuth 2.0, and OpenID Connect][hydra-doc];
 - [ORY Hydra: Integrating with (existing) User Management][hydra-login-consent];
-- [Official User Login & Consent Example](https://github.com/ory/hydra-login-consent-node);
+- [ORY Hydra: Configuration][hydra-doc-config];
+- [ORY Hydra: Official User Login & Consent Example][hydra-login-consent-example];
 - [OpenID Connect Core 1.0][oidc-spec-core];
 - [OpenID Connect Session Management 1.0][oidc-spec-session];
 - [OpenID Connect Front-Channel Logout 1.0][oidc-spec-front-channel-logout];
@@ -254,6 +328,9 @@ The code in this project is licensed under [MIT license][license].
 [codecov-img]: https://codecov.io/gh/i-core/werther/branch/master/graph/badge.svg
 [codecov]: https://codecov.io/gh/i-core/werther
 
+[goreport-img]: https://goreportcard.com/badge/github.com/i-core/werther
+[goreport]: https://goreportcard.com/report/github.com/i-core/werther
+
 [contrib]: https://github.com/i-core/.github/blob/master/CONTRIBUTING.md
 [license]: LICENSE
 
@@ -263,6 +340,7 @@ The code in this project is licensed under [MIT license][license].
 [hydra]: https://www.ory.sh/
 [hydra-doc]: https://www.ory.sh/docs/hydra/
 [hydra-login-consent]: https://www.ory.sh/docs/hydra/oauth2
+[hydra-login-consent-example]: https://github.com/ory/hydra-login-consent-node
 [hydra-doc-config]: https://www.ory.sh/docs/hydra/configuration
 
 [oidc-spec-core]: https://openid.net/specs/openid-connect-core-1_0.html

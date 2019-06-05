@@ -1,0 +1,83 @@
+language: go
+
+go:
+  - 1.12.x
+
+services:
+  - docker
+
+env:
+  global:
+    - CGO_ENABLED=0
+    - GO111MODULE=on
+    - GOPROXY=https://proxy.golang.org
+
+cache:
+  directories:
+    - "$GOPATH/pkg/mod"
+    - "$GOPATH/bin"
+
+install: "(cd $HOME && go get -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.16.0)"
+
+script:
+  - go test -v -coverprofile=coverage.txt ./...
+  - golangci-lint -v run
+  - |
+    set -e
+    for dist in linux/386 linux/amd64 windows/amd64 darwin/amd64
+    do
+      os=`echo $dist | cut -d'/' -f1`
+      arch=`echo $dist | cut -d'/' -f2`
+      env GOOS=$os GOARCH=$arch go build -o bin/werther_${os}_${arch} -ldflags "-w -s -X main.version=$TRAVIS_TAG" ./cmd/werther
+      if [[ "$os" = "windows" ]]; then
+        zip -r bin/werther_${os}_${arch}.zip bin/werther_${os}_${arch}
+      else
+        tar cvzf bin/werther_${os}_${arch}.tar.gz bin/werther_${os}_${arch}
+      fi
+    done
+    (cd bin && sha256sum *.{tar.gz,zip} > werther_checksums.txt)
+  - |
+    set -e
+    docker build --build-arg GOPROXY --build-arg VERSION=$TRAVIS_TAG -t "icoreru/werther:$TRAVIS_COMMIT" .
+    if [ -n "$TRAVIS_TAG" ]; then
+      docker tag "icoreru/werther:$TRAVIS_COMMIT" "icoreru/werther:$TRAVIS_TAG"
+      docker tag "icoreru/werther:$TRAVIS_COMMIT" "icoreru/werther:latest"
+    fi
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+
+before_deploy:
+  - |
+    if [ -n "$TRAVIS_TAG" ]; then
+      docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+    fi
+
+deploy:
+  - provider: releases
+    api_key:
+      secure: f3KYUKsrtYRKcttPfWmHWGCFT2ugas1fgbBACGCTFp/ir6AAfHt16FYHgyfXc8+V9IajNkwqL6TrDjQFfLSI0qx38s+wLK6FIicjvMzVWXe/lCHByr4kAZuN2BOynrKiE8rkEcXHGjX2adrrvETNwUCp+oIxQtdIAVvE1Fjkb+MdnCs7Ed9beggqNOJksGVJ44X17ezarCc8/L4ULIXY/OBLnUnwH6UwMrSIPuwvMJAZlhyJWOv4ro8Z3D2f5vfD91MNit8rCkXkYPKnw1/rIpBbaoARLQ95bN97NsLkfeNlSgoAXhy00i+Jz78PgD3TvTPecdlTPwBNNnHaXBtQZjB+qHpr4lW/NP2+IJ6Aku8JY2X+Srd/BYD8hh4Nqzp3UiymsQS61++jfZmi3xUu5nhFkd+MavVW8Xy0/8vnREqHuwCQ8+oo1GHqDnKgdeRMm29AwTTx/FyUSPlzWzQIC1PVFtS3/YYqAn7sooS6l5MuSENk05IYOM1ApXOGb6tNW8wDGTD8QP8KvJjfARg8365wwhEAP6gdrW6VotSjY5XZM37ge0uKfKBvw8BVNfbn/R4/12KIuqPsEmbVfFJx18DQzz3b+9UfPZQwuxZvgNnngplUbzP2q/cKYNSMHKzZ53EVPPr5wtdDWm5pnbLtWbrN5d+y2FoS+YBrCrL09C8=
+    file:
+      - bin/werther_linux_386.tar.gz
+      - bin/werther_linux_amd64.tar.gz
+      - bin/werther_windows_amd64.zip
+      - bin/werther_darwin_amd64.tar.gz
+      - bin/werther_checksums.txt
+    skip_cleanup: true
+    on:
+      tags: true
+      condition: $TRAVIS_OS_NAME = linux
+
+  - provider: script
+    skip_cleanup: true
+    script: docker push "icoreru/werther:$TRAVIS_TAG"
+    on:
+      tags: true
+      condition: $TRAVIS_OS_NAME = linux
+
+  - provider: script
+    skip_cleanup: true
+    script: docker push "icoreru/werther:latest"
+    on:
+      tags: true
+      condition: $TRAVIS_OS_NAME = linux
