@@ -204,93 +204,98 @@ For a full example of a login page's template see [source code](internal/web/tem
     ```yaml
     version: "3"
     services:
-    hydra-client:
-        image: oryd/hydra:v1.0.0-rc.12
-        environment:
-            HYDRA_ADMIN_URL: http://hydra:4445
-        command:
-            - clients
-            - create
-            - --skip-tls-verify
-            - --id
-            - test-client
-            - --secret
-            - test-secret
-            - --response-types
-            - id_token,token,"id_token token"
-            - --grant-types
-            - implicit
-            - --scope
-            - openid,profile,email
-            - --callbacks
-            - http://localhost:3000
-            - --post-logout-callbacks
-            - http://localhost:3000/post-logout-callback
-        networks:
-            - hydra-net
-        deploy:
-            restart_policy:
-                condition: none
-        depends_on:
-            - hydra
-    hydra:
-        image: oryd/hydra:v1.0.0-rc.12
-        environment:
-            URLS_SELF_ISSUER: http://localhost:4444
-            URLS_SELF_PUBLIC: http://localhost:4444
-            URLS_LOGIN: http://localhost:8080/auth/login
-            URLS_CONSENT: http://localhost:8080/auth/consent
-            URLS_LOGOUT: http://localhost:8080/auth/logout
-            WEBFINGER_OIDC_DISCOVERY_SUPPORTED_SCOPES: profile,email,phone
-            WEBFINGER_OIDC_DISCOVERY_SUPPORTED_CLAIMS: name,family_name,given_name,nickname,email,phone_number
-            DSN: memory
-        command: serve all --dangerous-force-http
-        networks:
-            - hydra-net
-        ports:
-            - "4444:4444"
-            - "4445:4445"
-        deploy:
-            restart_policy:
-                condition: on-failure
-        depends_on:
-            - werther
-    werther:
-        image: icoreru/werther:v1.0.0
-        environment:
-            WERTHER_IDENTP_HYDRA_URL: http://hydra:4445
-            WERTHER_LDAP_ENDPOINTS: ldap:389
-            WERTHER_LDAP_BINDDN: cn=admin,dc=example,dc=com
-            WERTHER_LDAP_BINDPW: password
-            WERTHER_LDAP_BASEDN: "dc=example,dc=com"
-            WERTHER_LDAP_ROLE_BASEDN: "ou=AppRoles,dc=example,dc=com"
-        networks:
-            - hydra-net
-        ports:
-            - "8080:8080"
-        deploy:
-            restart_policy:
-                condition: on-failure
-        depends_on:
-            - ldap
-    ldap:
-        image: pgarrett/ldap-alpine
-        volumes:
-            - "./ldap.ldif:/ldif/ldap.ldif"
-        networks:
-            - hydra-net
-        ports:
-            - "389:389"
-        deploy:
-            restart_policy:
-                condition: on-failure
+        hydra-client:
+            image: oryd/hydra:v1.0.0-rc.12
+            environment:
+                HYDRA_ADMIN_URL: http://hydra:4445
+            command:
+                - clients
+                - create
+                - --skip-tls-verify
+                - --id
+                - test-client
+                - --secret
+                - test-secret
+                - --response-types
+                - id_token,token,"id_token token"
+                - --grant-types
+                - implicit
+                - --scope
+                - openid,profile,email
+                - --callbacks
+                - http://localhost:3000
+                - --post-logout-callbacks
+                - http://localhost:3000/post-logout-callback
+            networks:
+                - hydra-net
+            deploy:
+                restart_policy:
+                    condition: none
+            depends_on:
+                - hydra
+            healthcheck:
+                test: ["CMD", "curl", "-f", "http://hydra:4445"]
+                interval: 10s
+                timeout: 10s
+                retries: 10
+        hydra:
+            image: oryd/hydra:v1.0.0-rc.12
+            environment:
+                URLS_SELF_ISSUER: http://localhost:4444
+                URLS_SELF_PUBLIC: http://localhost:4444
+                URLS_LOGIN: http://localhost:8080/auth/login
+                URLS_CONSENT: http://localhost:8080/auth/consent
+                URLS_LOGOUT: http://localhost:8080/auth/logout
+                WEBFINGER_OIDC_DISCOVERY_SUPPORTED_SCOPES: profile,email,phone
+                WEBFINGER_OIDC_DISCOVERY_SUPPORTED_CLAIMS: name,family_name,given_name,nickname,email,phone_number
+                DSN: memory
+            command: serve all --dangerous-force-http
+            networks:
+                - hydra-net
+            ports:
+                - "4444:4444"
+                - "4445:4445"
+            deploy:
+                restart_policy:
+                    condition: on-failure
+            depends_on:
+                - werther
+        werther:
+            image: icoreru/werther:v1.0.0
+            environment:
+                WERTHER_IDENTP_HYDRA_URL: http://hydra:4445
+                WERTHER_LDAP_ENDPOINTS: ldap:389
+                WERTHER_LDAP_BINDDN: cn=admin,dc=example,dc=com
+                WERTHER_LDAP_BINDPW: password
+                WERTHER_LDAP_BASEDN: "dc=example,dc=com"
+                WERTHER_LDAP_ROLE_BASEDN: "ou=AppRoles,dc=example,dc=com"
+            networks:
+                - hydra-net
+            ports:
+                - "8080:8080"
+            deploy:
+                restart_policy:
+                    condition: on-failure
+            depends_on:
+                - ldap
+        ldap:
+            image: pgarrett/ldap-alpine
+            volumes:
+                - "./ldap.ldif:/ldif/ldap.ldif"
+            networks:
+                - hydra-net
+            ports:
+                - "389:389"
+            deploy:
+                restart_policy:
+                    condition: on-failure
     networks:
         hydra-net:
     ```
 
 3. Run the command:
     ```bash
-    docker stack deploy docker-compose.yml auth
+    docker stack deploy -c docker-compose.yml auth
     ```
 
 4. Open the browser with http://localhost:4444/oauth2/auth?client_id=test-client&response_type=token&scope=openid%20profile%20email&state=12345678.
