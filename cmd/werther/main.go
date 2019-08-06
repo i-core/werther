@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/i-core/rlog"
@@ -56,6 +57,10 @@ func main() {
 	var cnf Config
 	if err := envconfig.Process("werther", &cnf); err != nil {
 		fmt.Fprintf(os.Stderr, "Invalid configuration: %s\n", err)
+		os.Exit(1)
+	}
+	if _, ok := cnf.Identp.ClaimScopes[url.QueryEscape(cnf.LDAP.RoleClaim)]; !ok {
+		fmt.Fprintf(os.Stderr, "Roles claim %q has no mapping to an OpenID Connect scope\n", cnf.LDAP.RoleClaim)
 		os.Exit(1)
 	}
 

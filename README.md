@@ -98,6 +98,15 @@ of the user role's claim `https://github.com/i-core/werther/claims/roles`.
 ```
 
 To customize the roles claim's name you should set a value of the environment variable `WERTHER_LDAP_ROLE_CLAIM`.
+Also you should map the custom name of the roles' claim to a roles's scope using the environment variable
+`WERTHER_IDENTP_CLAIM_SCOPES` (the name must be [URL encoded][uri-spec-encoding]):
+
+```bash
+env WERTHER_LDAP_ROLE_CLAIM=https://my-company.com/claims/roles                                                                                     \
+    WERTHER_IDENTP_CLAIM_SCOPES=name:profile,family_name:profile,given_name:profile,email:email,https%3A%2F%2Fmy-company.com%2Fclaims%2Froles:roles \
+    werther
+```
+
 For more details about claims naming see [OpenID Connect Core 1.0][oidc-spec-additional-claims].
 
 **NB** There are cases when we need to create several roles with the same name in LDAP.
@@ -353,3 +362,5 @@ The code in this project is licensed under [MIT license][license].
 [oidc-spec-session]: https://openid.net/specs/openid-connect-session-1_0.html
 [oidc-spec-front-channel-logout]: https://openid.net/specs/openid-connect-frontchannel-1_0.html
 [oidc-spec-back-channel-logout]: https://openid.net/specs/openid-connect-backchannel-1_0.html
+
+[uri-spec-encoding]: https://tools.ietf.org/html/rfc3986#section-2
