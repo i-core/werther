@@ -29,7 +29,7 @@ const loginTmplName = "login.tmpl"
 type Config struct {
 	HydraURL    string            `envconfig:"hydra_url" required:"true" desc:"an admin URL of ORY Hydra Server"`
 	SessionTTL  time.Duration     `envconfig:"session_ttl" default:"24h" desc:"a user session's TTL"`
-	ClaimScopes map[string]string `envconfig:"claim_scopes" default:"name:profile,family_name:profile,given_name:profile,email:email,http%3A%2F%2Ffithub.com%2Fi-core.ru%2Fwerther%2Fclaims%2Froles:roles" desc:"a mapping of OpenID Connect claims to scopes (all claims are URL encoded)"`
+	ClaimScopes map[string]string `envconfig:"claim_scopes" default:"name:profile,family_name:profile,given_name:profile,email:email,https%3A%2F%2Fgithub.com%2Fi-core%2Fwerther%2Fclaims%2Froles:roles" desc:"a mapping of OpenID Connect claims to scopes (all claims are URL encoded)"`
 }
 
 // UserManager is an interface that is used for authentication and providing user's claims.
