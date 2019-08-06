@@ -59,6 +59,10 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Invalid configuration: %s\n", err)
 		os.Exit(1)
 	}
+	if _, ok := cnf.Identp.ClaimScopes[url.QueryEscape(cnf.LDAP.RoleClaim)]; !ok {
+		fmt.Fprintf(os.Stderr, "Roles claim %q has no mapping to an OpenID Connect scope\n", cnf.LDAP.RoleClaim)
+		os.Exit(1)
+	}
 
 	logFunc := zap.NewProduction
 	if cnf.DevMode {
@@ -69,8 +73,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to create logger: %s\n", err)
 		os.Exit(1)
 	}
-
-	validateConfig(cnf, log)
 
 	htmlRenderer, err := web.NewHTMLRenderer(cnf.Web)
 	if err != nil {
@@ -88,10 +90,4 @@ func main() {
 	log = log.Named("main")
 	log.Info("Werther started", zap.Any("config", cnf), zap.String("version", version))
 	log.Fatal("Werther finished", zap.Error(http.ListenAndServe(cnf.Listen, router)))
-}
-
-func validateConfig(cnf Config, log *zap.Logger) {
-	if _, ok := cnf.Identp.ClaimScopes[url.QueryEscape(cnf.LDAP.RoleClaim)]; !ok {
-		log.Sugar().Infof("Roles claim %q has no mapping to an OpenID Connect scope. User's roles will not be available.", cnf.LDAP.RoleClaim)
-	}
 }
