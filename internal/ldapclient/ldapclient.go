@@ -9,6 +9,7 @@ package ldapclient
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -57,6 +58,7 @@ type Config struct {
 	RoleClaim  string            `envconfig:"role_claim" default:"https://github.com/i-core/werther/claims/roles" desc:"a name of an OpenID Connect claim that contains user roles"`
 	CacheSize  int               `envconfig:"cache_size" default:"512" desc:"a user info cache's size in KiB"`
 	CacheTTL   time.Duration     `envconfig:"cache_ttl" default:"30m" desc:"a user info cache TTL"`
+	IsTLS      bool              `envconfig:"is_tls" default:"false" desc:"should LDAP connection be established via TLS"`
 }
 
 // Client is a LDAP client (compatible with Active Directory).
@@ -70,7 +72,7 @@ type Client struct {
 func New(cnf Config) *Client {
 	return &Client{
 		Config:    cnf,
-		connector: &ldapConnector{BaseDN: cnf.BaseDN, RoleBaseDN: cnf.RoleBaseDN},
+		connector: &ldapConnector{BaseDN: cnf.BaseDN, RoleBaseDN: cnf.RoleBaseDN, IsTLS: cnf.IsTLS},
 		cache:     freecache.NewCache(cnf.CacheSize * 1024),
 	}
 }
@@ -296,6 +298,7 @@ func (cli *Client) findBasicUserDetails(cn conn, username string, attrs []string
 type ldapConnector struct {
 	BaseDN     string
 	RoleBaseDN string
+	IsTLS      bool
 }
 
 func (c *ldapConnector) Connect(ctx context.Context, addr string) (conn, error) {
@@ -304,7 +307,17 @@ func (c *ldapConnector) Connect(ctx context.Context, addr string) (conn, error) 
 	if err != nil {
 		return nil, err
 	}
-	ldapcn := ldap.NewConn(tcpcn, false)
+
+	if c.IsTLS {
+		tlscn, err := tls.DialWithDialer(&d, "tcp", addr, nil)
+		if err != nil {
+			return nil, err
+		}
+		tcpcn = tlscn
+	}
+
+	ldapcn := ldap.NewConn(tcpcn, c.IsTLS)
+
 	ldapcn.Start()
 	return &ldapConn{Conn: ldapcn, BaseDN: c.BaseDN, RoleBaseDN: c.RoleBaseDN}, nil
 }
