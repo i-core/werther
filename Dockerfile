@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-FROM golang:1.12-alpine AS build
+FROM golang:1.13-alpine AS build
 
 ARG VERSION
 ARG GOPROXY
