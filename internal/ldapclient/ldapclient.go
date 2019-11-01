@@ -344,7 +344,10 @@ func (c *ldapConn) SearchUser(user string, attrs ...string) ([]map[string]interf
 }
 
 func (c *ldapConn) SearchUserRoles(user string, attrs ...string) ([]map[string]interface{}, error) {
-	query := fmt.Sprintf("(&(objectClass=group)(member=%s))", user)
+	query := fmt.Sprintf("(|"+
+		"(&(|(objectClass=group)(objectClass=groupOfNames))(member=%[1]s))"+
+		"(&(objectClass=groupOfUniqueNames)(uniqueMember=%[1]s))"+
+		")", user)
 	return c.searchEntries(c.RoleBaseDN, query, attrs)
 }
 
