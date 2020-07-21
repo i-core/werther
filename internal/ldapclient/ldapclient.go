@@ -18,10 +18,10 @@ import (
 	"time"
 
 	"github.com/coocood/freecache"
+	"github.com/go-ldap/ldap/v3"
 	"github.com/i-core/rlog"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	ldap "gopkg.in/ldap.v2"
 )
 
 var (

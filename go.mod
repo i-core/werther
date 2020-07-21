@@ -7,6 +7,7 @@ require (
 	github.com/coocood/freecache v1.0.1
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/elazarl/go-bindata-assetfs v1.0.0
+	github.com/go-ldap/ldap/v3 v3.2.3
 	github.com/i-core/rlog v1.0.0
 	github.com/i-core/routegroup v1.0.0
 	github.com/justinas/nosurf v0.0.0-20171023064657-7182011986c4
@@ -17,7 +18,6 @@ require (
 	github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72 // indirect
 	go.uber.org/zap v1.10.0
 	gopkg.in/asn1-ber.v1 v1.0.0-20170511165959-379148ca0225 // indirect
-	gopkg.in/ldap.v2 v2.5.1
 )
 
 go 1.13
