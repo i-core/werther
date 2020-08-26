@@ -230,7 +230,7 @@ For a full example of a login page's template see [source code](internal/web/tem
                 - --grant-types
                 - implicit
                 - --scope
-                - openid,profile,email
+                - openid,profile,email,roles
                 - --callbacks
                 - http://localhost:3000
                 - --post-logout-callbacks
@@ -255,8 +255,8 @@ For a full example of a login page's template see [source code](internal/web/tem
                 URLS_LOGIN: http://localhost:8080/auth/login
                 URLS_CONSENT: http://localhost:8080/auth/consent
                 URLS_LOGOUT: http://localhost:8080/auth/logout
-                WEBFINGER_OIDC_DISCOVERY_SUPPORTED_SCOPES: profile,email,phone
-                WEBFINGER_OIDC_DISCOVERY_SUPPORTED_CLAIMS: name,family_name,given_name,nickname,email,phone_number
+                WEBFINGER_OIDC_DISCOVERY_SUPPORTED_SCOPES: profile,email,phone,roles
+                WEBFINGER_OIDC_DISCOVERY_SUPPORTED_CLAIMS: name,family_name,given_name,nickname,email,phone_number,https://github.com/i-core/werther/claims/roles
                 DSN: memory
             command: serve all --dangerous-force-http
             networks:
@@ -270,7 +270,7 @@ For a full example of a login page's template see [source code](internal/web/tem
             depends_on:
                 - werther
         werther:
-            image: icoreru/werther:v1.0.0
+            image: icoreru/werther:v1.1.1
             environment:
                 WERTHER_IDENTP_HYDRA_URL: http://hydra:4445
                 WERTHER_LDAP_ENDPOINTS: ldap:389
@@ -307,7 +307,7 @@ For a full example of a login page's template see [source code](internal/web/tem
     docker stack deploy -c docker-compose.yml auth
     ```
 
-4. Open the browser with http://localhost:4444/oauth2/auth?client_id=test-client&response_type=token&scope=openid%20profile%20email&state=12345678.
+4. Open the browser with http://localhost:4444/oauth2/auth?client_id=test-client&response_type=token&scope=openid%20profile%20email%20roles&state=12345678.
 
 ## Resources
 
