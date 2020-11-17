@@ -52,7 +52,7 @@ type oidcClaimsFinder interface {
 
 // TemplateRenderer renders a template with data and writes it to a http.ResponseWriter.
 type TemplateRenderer interface {
-	RenderTemplate(w http.ResponseWriter, name string, data interface{}) error
+	RenderTemplate(w http.ResponseWriter, r *http.Request, name string, data interface{}) error
 }
 
 // LoginTmplData is a data that is needed for rendering the login page.
@@ -147,7 +147,7 @@ func newLoginStartHandler(rproc oa2LoginReqProcessor, tmplRenderer TemplateRende
 			Challenge: challenge,
 			LoginURL:  strings.TrimPrefix(r.URL.String(), "/"),
 		}
-		if err := tmplRenderer.RenderTemplate(w, loginTmplName, data); err != nil {
+		if err := tmplRenderer.RenderTemplate(w, r, loginTmplName, data); err != nil {
 			log.Infow("Failed to render a login page template", zap.Error(err))
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
@@ -180,7 +180,7 @@ func newLoginEndHandler(ra oa2LoginReqAcceptor, auther authenticator, tmplRender
 			data.IsInternalError = true
 			log.Infow("Failed to authenticate a login request via the OAuth2 provider",
 				zap.Error(err), "challenge", challenge, "username", username)
-			if err = tmplRenderer.RenderTemplate(w, loginTmplName, data); err != nil {
+			if err = tmplRenderer.RenderTemplate(w, r, loginTmplName, data); err != nil {
 				log.Infow("Failed to render a login page template", zap.Error(err))
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
@@ -188,7 +188,7 @@ func newLoginEndHandler(ra oa2LoginReqAcceptor, auther authenticator, tmplRender
 		case !ok:
 			data.IsInvalidCredentials = true
 			log.Debugw("Invalid credentials", zap.Error(err), "challenge", challenge, "username", username)
-			if err = tmplRenderer.RenderTemplate(w, loginTmplName, data); err != nil {
+			if err = tmplRenderer.RenderTemplate(w, r, loginTmplName, data); err != nil {
 				log.Infow("Failed to render a login page template", zap.Error(err))
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
@@ -201,7 +201,7 @@ func newLoginEndHandler(ra oa2LoginReqAcceptor, auther authenticator, tmplRender
 		if err != nil {
 			data.IsInternalError = true
 			log.Infow("Failed to accept a login request via the OAuth2 provider", zap.Error(err))
-			if err := tmplRenderer.RenderTemplate(w, loginTmplName, data); err != nil {
+			if err := tmplRenderer.RenderTemplate(w, r, loginTmplName, data); err != nil {
 				log.Infow("Failed to render a login page template", zap.Error(err))
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}

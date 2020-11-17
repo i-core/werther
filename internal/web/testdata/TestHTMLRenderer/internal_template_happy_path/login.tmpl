@@ -1,31 +1,13 @@
-{{- define "title" }}
-CSRFToken: {{ .CSRFToken }};
-Challenge: {{ .Challenge }};
-LoginURL: {{ .LoginURL }};
-IsInvalidCredentials: {{ .IsInvalidCredentials }};
-IsInternalError: {{ .IsInternalError }};
-{{- end }}
+{{- define "main" }}internal template
+WebBasePath: {{ .WebBasePath }};
 
-{{- define "style" }}
-CSRFToken: {{ .CSRFToken }};
-Challenge: {{ .Challenge }};
-LoginURL: {{ .LoginURL }};
-IsInvalidCredentials: {{ .IsInvalidCredentials }};
-IsInternalError: {{ .IsInternalError }};
-{{- end }}
+Langs:
+{{ range .LangPrefs }}{{ .Lang }};q={{ .Weight }},{{ end }}
 
-{{- define "js" }}
-CSRFToken: {{ .CSRFToken }};
-Challenge: {{ .Challenge }};
-LoginURL: {{ .LoginURL }};
-IsInvalidCredentials: {{ .IsInvalidCredentials }};
-IsInternalError: {{ .IsInternalError }};
-{{- end }}
-
-{{- define "content" }}
-CSRFToken: {{ .CSRFToken }};
-Challenge: {{ .Challenge }};
-LoginURL: {{ .LoginURL }};
-IsInvalidCredentials: {{ .IsInvalidCredentials }};
-IsInternalError: {{ .IsInternalError }};
+Data:
+CSRFToken: {{ .Data.CSRFToken }};
+Challenge: {{ .Data.Challenge }};
+LoginURL: {{ .Data.LoginURL }};
+IsInvalidCredentials: {{ .Data.IsInvalidCredentials }};
+IsInternalError: {{ .Data.IsInternalError }};
 {{- end }}

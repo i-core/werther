@@ -98,7 +98,7 @@ func TestHandleLoginStart(t *testing.T) {
 			rr := httptest.NewRecorder()
 
 			tmplRenderer := &testTemplateRenderer{
-				renderTmplFunc: func(w http.ResponseWriter, name string, data interface{}) error {
+				renderTmplFunc: func(w http.ResponseWriter, r *http.Request, name string, data interface{}) error {
 					if name != "login.tmpl" {
 						t.Fatalf("wrong template name: got %q; want \"login.tmpl\"", name)
 					}
@@ -264,7 +264,7 @@ func TestHandleLoginEnd(t *testing.T) {
 			rr := httptest.NewRecorder()
 
 			tmplRenderer := &testTemplateRenderer{
-				renderTmplFunc: func(w http.ResponseWriter, name string, data interface{}) error {
+				renderTmplFunc: func(w http.ResponseWriter, r *http.Request, name string, data interface{}) error {
 					if name != "login.tmpl" {
 						t.Fatalf("wrong template name: got %q; want \"login.tmpl\"", name)
 					}
@@ -327,11 +327,11 @@ func TestHandleLoginEnd(t *testing.T) {
 }
 
 type testTemplateRenderer struct {
-	renderTmplFunc func(w http.ResponseWriter, name string, data interface{}) error
+	renderTmplFunc func(w http.ResponseWriter, r *http.Request, name string, data interface{}) error
 }
 
-func (tl *testTemplateRenderer) RenderTemplate(w http.ResponseWriter, name string, data interface{}) error {
-	return tl.renderTmplFunc(w, name, data)
+func (tl *testTemplateRenderer) RenderTemplate(w http.ResponseWriter, r *http.Request, name string, data interface{}) error {
+	return tl.renderTmplFunc(w, r, name, data)
 }
 
 type testAuthenticator struct {

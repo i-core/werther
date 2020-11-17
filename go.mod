@@ -17,7 +17,7 @@ require (
 	github.com/sergi/go-diff v1.0.0 // indirect
 	github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72 // indirect
 	go.uber.org/zap v1.10.0
-	gopkg.in/asn1-ber.v1 v1.0.0-20170511165959-379148ca0225 // indirect
+	golang.org/x/text v0.3.2
 )
 
 go 1.13
