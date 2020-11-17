@@ -102,7 +102,8 @@ func (r *HTMLRenderer) RenderTemplate(w http.ResponseWriter, req *http.Request, 
 	}
 
 	if isOldStyleUserTemplate(root) {
-		wrapper, err := r.mainTmpl.Clone()
+		var wrapper *template.Template
+		wrapper, err = r.mainTmpl.Clone()
 		if err != nil {
 			return errors.Wrapf(err, "failed to clone the main template for template %q: %s", name, err)
 		}
@@ -120,7 +121,9 @@ func (r *HTMLRenderer) RenderTemplate(w http.ResponseWriter, req *http.Request, 
 
 	var langPrefs []langPref
 	if acceptLang := req.Header.Get(http.CanonicalHeaderKey("Accept-Language")); acceptLang != "" {
-		tags, weights, err := language.ParseAcceptLanguage(acceptLang)
+		var tags []language.Tag
+		var weights []float32
+		tags, weights, err = language.ParseAcceptLanguage(acceptLang)
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse the header \"Accept-Language\": %s", err)
 		}
