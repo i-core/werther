@@ -101,6 +101,10 @@ func (r *HTMLRenderer) RenderTemplate(w http.ResponseWriter, req *http.Request, 
 		return errors.Wrapf(err, "failed to parse template %q: %s", name, err)
 	}
 
+	// The old-style template of a web page showed itself as not flexible.
+	// It was changed with a new template that allows overriding the whole page.
+	// The old-style template left for backward compatibility
+	// and will be deprecated in the future major release.
 	if isOldStyleUserTemplate(root) {
 		var wrapper *template.Template
 		wrapper, err = r.mainTmpl.Clone()
@@ -152,6 +156,13 @@ func (r *HTMLRenderer) RenderTemplate(w http.ResponseWriter, req *http.Request, 
 	return err
 }
 
+// Returns true if a template is the old-style template.
+//
+// A template is considered as the old-style template
+// if it contains four blocks for customizing the page title,
+// styles, markup, and scripts.
+//
+// See https://github.com/i-core/werther/issues/11.
 func isOldStyleUserTemplate(root *template.Template) bool {
 	var tmpls []string
 	for _, tmpl := range root.Templates() {

@@ -20,6 +20,66 @@ import (
 	"github.com/i-core/routegroup"
 )
 
+// func TestHTMLRenderer(t *testing.T) {
+// 	testCases := []struct {
+// 		name     string
+// 		ext      bool
+// 		basePath string
+// 		data     interface{}
+// 		wantErr  error
+// 	}{
+
+// 	}
+// 	for _, tc := range testCases {
+// 		t.Run(tc.name, func(t *testing.T) {
+// 			tstDir := path.Join("testdata", t.Name())
+
+// 			// Create the template renderer.
+// 			cnf := Config{BasePath: tc.basePath}
+// 			if tc.ext {
+// 				cnf.Dir = tstDir
+// 			} else {
+// 				origin := intTmplsFS
+// 				defer func() { intTmplsFS = origin }()
+// 				intTmplsFS = http.Dir(tstDir)
+// 			}
+// 			r, err := NewHTMLRenderer(cnf)
+// 			if err != nil {
+// 				t.Fatalf("failed to create the template renderer: %s", err)
+// 			}
+
+// 			rr := httptest.NewRecorder()
+// 			req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
+// 			req.Header.Set(http.CanonicalHeaderKey("Accept-Language"), "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
+// 			err = r.RenderTemplate(rr, req, "login.tmpl", tc.data)
+
+// 			if tc.wantErr != nil {
+// 				if err == nil {
+// 					t.Fatalf("\ngot not errors\nwant error\n\t%s", tc.wantErr)
+// 				}
+// 				if err.Error() != tc.wantErr.Error() {
+// 					t.Fatalf("\ngot error:\n\t%s\nwant error\n\t%s", err, tc.wantErr)
+// 				}
+// 				return
+// 			}
+// 			if err != nil {
+// 				t.Fatalf("\ngot error\n\t%s\nwant no errors", err)
+// 			}
+// 			f, err := os.Open(path.Join(tstDir, "golden.file"))
+// 			if err != nil {
+// 				t.Fatalf("failed to open golden file: %s", err)
+// 			}
+// 			fc, err := ioutil.ReadAll(f)
+// 			if err != nil {
+// 				t.Fatalf("failed to read golden file: %s", err)
+// 			}
+// 			if got, want := rr.Body.String(), string(fc); got != want {
+// 				t.Errorf("\nbody diff (-want +got):\n%s", diff.LineDiff(want, got))
+// 			}
+// 		})
+// 	}
+// }
+
 func TestHTMLRenderer(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -60,10 +120,64 @@ func TestHTMLRenderer(t *testing.T) {
 				"IsInternalError":      true,
 			},
 		},
+
+		{
+			name:    "old style internal template not found",
+			wantErr: fmt.Errorf(`the template "login.tmpl" does not exist`),
+		},
+		{
+			name:     "old style internal template happy path",
+			basePath: "testBasePath",
+			data: map[string]interface{}{
+				"CSRFToken":            "testCSRFToken",
+				"Challenge":            "testChalenge",
+				"LoginURL":             "testLoginURL",
+				"IsInvalidCredentials": true,
+				"IsInternalError":      true,
+			},
+		},
+		{
+			name:    "old style external template not found",
+			ext:     true,
+			wantErr: fmt.Errorf(`the template "login.tmpl" does not exist`),
+		},
+		{
+			name:     "old style external template happy path",
+			ext:      true,
+			basePath: "testBasePath",
+			data: map[string]interface{}{
+				"CSRFToken":            "testCSRFToken",
+				"Challenge":            "testChalenge",
+				"LoginURL":             "testLoginURL",
+				"IsInvalidCredentials": true,
+				"IsInternalError":      true,
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tstDir := path.Join("testdata", t.Name())
+
+			var originMainT = mainT
+			defer func() { mainT = originMainT }()
+
+			// Read the main template if it is exist.
+			fpath := path.Join(tstDir, "main.tmpl")
+			stat, err := os.Stat(fpath)
+			if err != nil && !os.IsNotExist(err) {
+				t.Fatalf("failed to open main template: %s", err)
+			}
+			if stat != nil {
+				f, err := os.Open(fpath)
+				if err != nil {
+					t.Fatalf("failed to open main template: %s", err)
+				}
+				fc, err := ioutil.ReadAll(f)
+				if err != nil {
+					t.Fatalf("failed to read main template: %s", err)
+				}
+				mainT = string(fc)
+			}
 
 			// Create the template renderer.
 			cnf := Config{BasePath: tc.basePath}
@@ -101,110 +215,6 @@ func TestHTMLRenderer(t *testing.T) {
 				t.Fatalf("failed to open golden file: %s", err)
 			}
 			fc, err := ioutil.ReadAll(f)
-			if err != nil {
-				t.Fatalf("failed to read golden file: %s", err)
-			}
-			if got, want := rr.Body.String(), string(fc); got != want {
-				t.Errorf("\nbody diff (-want +got):\n%s", diff.LineDiff(want, got))
-			}
-		})
-	}
-}
-
-func TestHTMLRenderer_old_template(t *testing.T) {
-	testCases := []struct {
-		name     string
-		ext      bool
-		basePath string
-		data     interface{}
-		wantErr  error
-	}{
-		{
-			name:    "internal template not found",
-			wantErr: fmt.Errorf(`the template "login.tmpl" does not exist`),
-		},
-		{
-			name:     "internal template happy path",
-			basePath: "testBasePath",
-			data: map[string]interface{}{
-				"CSRFToken":            "testCSRFToken",
-				"Challenge":            "testChalenge",
-				"LoginURL":             "testLoginURL",
-				"IsInvalidCredentials": true,
-				"IsInternalError":      true,
-			},
-		},
-		{
-			name:    "external template not found",
-			ext:     true,
-			wantErr: fmt.Errorf(`the template "login.tmpl" does not exist`),
-		},
-		{
-			name:     "external template happy path",
-			ext:      true,
-			basePath: "testBasePath",
-			data: map[string]interface{}{
-				"CSRFToken":            "testCSRFToken",
-				"Challenge":            "testChalenge",
-				"LoginURL":             "testLoginURL",
-				"IsInvalidCredentials": true,
-				"IsInternalError":      true,
-			},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			tstDir := path.Join("testdata", t.Name())
-
-			// Read the main template.
-			var originMainT = mainT
-			defer func() { mainT = originMainT }()
-			f, err := os.Open(path.Join(tstDir, "main.tmpl"))
-			if err != nil {
-				t.Fatalf("failed to open main template: %s", err)
-			}
-			fc, err := ioutil.ReadAll(f)
-			if err != nil {
-				t.Fatalf("failed to read main template: %s", err)
-			}
-			mainT = string(fc)
-
-			// Create the template renderer.
-			cnf := Config{BasePath: tc.basePath}
-			if tc.ext {
-				cnf.Dir = tstDir
-			} else {
-				origin := intTmplsFS
-				defer func() { intTmplsFS = origin }()
-				intTmplsFS = http.Dir(tstDir)
-			}
-			r, err := NewHTMLRenderer(cnf)
-			if err != nil {
-				t.Fatalf("failed to create the template renderer: %s", err)
-			}
-
-			rr := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
-			req.Header.Set(http.CanonicalHeaderKey("Accept-Language"), "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
-			err = r.RenderTemplate(rr, req, "login.tmpl", tc.data)
-
-			if tc.wantErr != nil {
-				if err == nil {
-					t.Fatalf("\ngot not errors\nwant error\n\t%s", tc.wantErr)
-				}
-				if err.Error() != tc.wantErr.Error() {
-					t.Fatalf("\ngot error:\n\t%s\nwant error\n\t%s", err, tc.wantErr)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("\ngot error\n\t%s\nwant no errors", err)
-			}
-			f, err = os.Open(path.Join(tstDir, "golden.file"))
-			if err != nil {
-				t.Fatalf("failed to open golden file: %s", err)
-			}
-			fc, err = ioutil.ReadAll(f)
 			if err != nil {
 				t.Fatalf("failed to read golden file: %s", err)
 			}
