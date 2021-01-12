@@ -168,12 +168,12 @@ func TestHTMLRenderer(t *testing.T) {
 				t.Fatalf("failed to open main template: %s", err)
 			}
 			if stat != nil {
-				f, err := os.Open(fpath)
-				if err != nil {
+				var f *os.File
+				if f, err = os.Open(fpath); err != nil {
 					t.Fatalf("failed to open main template: %s", err)
 				}
-				fc, err := ioutil.ReadAll(f)
-				if err != nil {
+				var fc []byte
+				if fc, err = ioutil.ReadAll(f); err != nil {
 					t.Fatalf("failed to read main template: %s", err)
 				}
 				mainT = string(fc)
