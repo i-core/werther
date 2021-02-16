@@ -20,66 +20,6 @@ import (
 	"github.com/i-core/routegroup"
 )
 
-// func TestHTMLRenderer(t *testing.T) {
-// 	testCases := []struct {
-// 		name     string
-// 		ext      bool
-// 		basePath string
-// 		data     interface{}
-// 		wantErr  error
-// 	}{
-
-// 	}
-// 	for _, tc := range testCases {
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			tstDir := path.Join("testdata", t.Name())
-
-// 			// Create the template renderer.
-// 			cnf := Config{BasePath: tc.basePath}
-// 			if tc.ext {
-// 				cnf.Dir = tstDir
-// 			} else {
-// 				origin := intTmplsFS
-// 				defer func() { intTmplsFS = origin }()
-// 				intTmplsFS = http.Dir(tstDir)
-// 			}
-// 			r, err := NewHTMLRenderer(cnf)
-// 			if err != nil {
-// 				t.Fatalf("failed to create the template renderer: %s", err)
-// 			}
-
-// 			rr := httptest.NewRecorder()
-// 			req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
-// 			req.Header.Set(http.CanonicalHeaderKey("Accept-Language"), "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
-// 			err = r.RenderTemplate(rr, req, "login.tmpl", tc.data)
-
-// 			if tc.wantErr != nil {
-// 				if err == nil {
-// 					t.Fatalf("\ngot not errors\nwant error\n\t%s", tc.wantErr)
-// 				}
-// 				if err.Error() != tc.wantErr.Error() {
-// 					t.Fatalf("\ngot error:\n\t%s\nwant error\n\t%s", err, tc.wantErr)
-// 				}
-// 				return
-// 			}
-// 			if err != nil {
-// 				t.Fatalf("\ngot error\n\t%s\nwant no errors", err)
-// 			}
-// 			f, err := os.Open(path.Join(tstDir, "golden.file"))
-// 			if err != nil {
-// 				t.Fatalf("failed to open golden file: %s", err)
-// 			}
-// 			fc, err := ioutil.ReadAll(f)
-// 			if err != nil {
-// 				t.Fatalf("failed to read golden file: %s", err)
-// 			}
-// 			if got, want := rr.Body.String(), string(fc); got != want {
-// 				t.Errorf("\nbody diff (-want +got):\n%s", diff.LineDiff(want, got))
-// 			}
-// 		})
-// 	}
-// }
-
 func TestHTMLRenderer(t *testing.T) {
 	testCases := []struct {
 		name     string
