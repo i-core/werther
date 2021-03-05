@@ -1,5 +1,8 @@
-{{- define "main" }}external template
+{{- define "main" }}internal template
 WebBasePath: {{ .WebBasePath }};
+
+Langs:
+{{ range .LangPrefs }}{{ .Lang }};q={{ .Weight }},{{ end }}
 
 Title:
 {{ block "title" .Data }}{{ end }}

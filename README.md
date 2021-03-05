@@ -166,13 +166,96 @@ After that you should set the directory path to the environment variable `WERTHE
 
 ### Custom login page
 
+A login page's template must be a Go template. The template has access to data conforming the next JSON-schema:
+
+```yaml
+type: object
+properties:
+  - WebBasePath:
+      description: The base path of the login page
+      type: string
+  - LangPrefs:
+      description: The user language preferences (the parsed value of the header Accept-Language)
+      type: array
+      items:
+        type: object
+        properties:
+          - Lang:
+              description: The language canonical name.
+              type: string
+          - Weight:
+              description: The language weight.
+              type: number
+        required:
+          - Lang
+          - Weight
+  - Data:
+      type: object
+      properties:
+        - CSRFToken:
+            description: A CSRF token.
+            type: string
+        - Challenge:
+            description: A login challenge ID.
+            type: string
+        - LoginURL:
+            description: An endpoint that finishes the login process.
+            type: string
+        - IsInvalidCredentials:
+            description: Specifies that a user types an invalid username or password.
+            type: boolean
+        - IsInternalError:
+            description: Specifies that an internal server error happens when finishing the login process.
+            type: boolean
+      required:
+        - CSRFToken
+        - Challenge
+        - LoginURL
+        - IsInvalidCredentials
+        - IsInternalError
+required:
+  - WebBasePath
+  - LangPrefs
+  - Data
+```
+
+When a login page's template contains static resources (like styles, scripts, and images)
+they must be placed in a subdirectory called `static`.
+
+For a full example of a login page's template see [source code](internal/web/templates).
+
+### Custom login page (old format)
+
+*The old template format is also supported but it will be removed in the future major release.*
+
 A login page's template should contains blocks `title`, `style`, `script`, `content`.
-Each block has access to data that is an object with the next properties:
-- `CSRFToken` (string) - a CSRF token;
-- `Challenge` (string) - a login challenge ID;
-- `LoginURL` (string) - an endpoint that finishes the login process;
-- `IsInvalidCredentials` (bool) - specifies that a user types an invalid username or password;
-- `IsInternalError` (bool) specifies that an internal server error happens when finishing the login process.
+Each block has access to data conforming the next JSON-schema:
+
+```yaml
+type: object
+properties:
+  - CSRFToken:
+    description: A CSRF token.
+    type: string
+  - Challenge:
+    description: A login challenge ID.
+    type: string
+  - LoginURL:
+    description: An endpoint that finishes the login process.
+    type: string
+  - IsInvalidCredentials:
+    description: Specifies that a user types an invalid username or password.
+    type: boolean
+  - IsInternalError:
+    description: Specifies that an internal server error happens when finishing the login process.
+    type: boolean
+required:
+  - CSRFToken
+  - Challenge
+  - LoginURL
+  - IsInvalidCredentials
+  - IsInternalError
+```
 
 When a login page's template contains static resources (like styles, scripts, and images)
 they must be placed in a subdirectory called `static`.

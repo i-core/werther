@@ -1,45 +1,43 @@
-{{ define "title" }}
-	Login Provider Werther
-{{ end }}
+<!DOCTYPE html>
+<html lang="{{ (index .LangPrefs 0).Lang }}">
+	<head>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Login Provider Werther</title>
+		<base href="{{ .WebBasePath }}">
+		<link rel="stylesheet" href="static/style.css">
+	</head>
+	<body>
+		<div class="login-page">
+			<div class="form">
+				<p class="message">
+				{{ if .Data.IsInvalidCredentials }}
+					Invalid username or password
+				{{ else if .Data.IsInternalError }}
+					Internal server error
+				{{ else }}
+					&nbsp;
+				{{ end }}
+				</p>
+				<form class="login-form" action="{{ .Data.LoginURL }}" method="POST">
+					<input type="hidden" name="csrf_token" value="{{ .Data.CSRFToken }}">
+					<input type="hidden" name="login_challenge" value="{{ .Data.Challenge }}">
 
-{{ define "style" }}
-	<link rel="stylesheet" href="static/style.css">
-{{ end }}
+					<input type="text" placeholder="username" name="username"/>
+					<input type="password" placeholder="password" name="password"/>
 
-{{ define "js" }}
-	<script type="text/javascript" src="static/script.js"></script>
-{{ end }}
-
-{{ define "content" }}
-	<div class="login-page">
-		<div class="form">
-			<p class="message">
-			{{ if .IsInvalidCredentials }}
-				Invalid username or password
-			{{ else if .IsInternalError }}
-				Internal server error
-			{{ else }}
-				&nbsp;
-			{{ end }}
-			</p>
-			<form class="login-form" action="{{ .LoginURL }}" method="POST">
-				<input type="hidden" name="csrf_token" value={{ .CSRFToken }}>
-				<input type="hidden" name="login_challenge" value={{ .Challenge }}>
-
-				<input type="text" placeholder="username" name="username"/>
-				<input type="password" placeholder="password" name="password"/>
-
-				<div class="checkbox remember-container">
-					<div class="checkbox-overlay">
-						<input type="checkbox" name="remember" />
-						<div class="checkbox-container">
-							<div class="checkbox-checkmark"></div>
+					<div class="checkbox remember-container">
+						<div class="checkbox-overlay">
+							<input type="checkbox" name="remember" />
+							<div class="checkbox-container">
+								<div class="checkbox-checkmark"></div>
+							</div>
+							<label for="remember">Remember me</label>
 						</div>
-						<label for="remember">Remember me</label>
 					</div>
-				</div>
-				<button type="submit">login</button>
-			</form>
+					<button type="submit">login</button>
+				</form>
+			</div>
 		</div>
-	</div>
-{{ end }}
+		<script type="text/javascript" src="static/script.js"></script>
+	</body>
+</html>

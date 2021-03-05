@@ -22,6 +22,7 @@ import (
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/i-core/routegroup"
 	"github.com/pkg/errors"
+	"golang.org/x/text/language"
 )
 
 // The file systems provide templates and their resources that are stored in the application's internal assets.
@@ -74,8 +75,14 @@ func NewHTMLRenderer(cnf Config) (*HTMLRenderer, error) {
 	return &HTMLRenderer{Config: cnf, mainTmpl: mainTmpl, fs: fs}, nil
 }
 
+type langPref struct {
+	Lang   string
+	Weight float32
+}
+
 // RenderTemplate renders a HTML page from a template with the specified name using the specified data.
-func (r *HTMLRenderer) RenderTemplate(w http.ResponseWriter, name string, data interface{}) error {
+func (r *HTMLRenderer) RenderTemplate(w http.ResponseWriter, req *http.Request, name string, data interface{}) error {
+	// Read and parse the requested template.
 	f, err := r.fs.Open(name)
 	if err != nil {
 		if v, ok := err.(*os.PathError); ok {
@@ -89,20 +96,56 @@ func (r *HTMLRenderer) RenderTemplate(w http.ResponseWriter, name string, data i
 	if err != nil {
 		return fmt.Errorf("failed to read template %q: %s", name, err)
 	}
-	t, err := r.mainTmpl.Clone()
-	if err != nil {
-		return errors.Wrapf(err, "failed to clone the main template for template %q: %s", name, err)
-	}
-	t, err = t.Parse(string(b))
+	root, err := template.New("main").Parse(string(b))
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse template %q: %s", name, err)
 	}
 
+	// The old-style template of a web page showed itself as not flexible.
+	// It was changed with a new template that allows overriding the whole page.
+	// The old-style template left for backward compatibility
+	// and will be deprecated in the future major release.
+	if isOldStyleUserTemplate(root) {
+		var wrapper *template.Template
+		wrapper, err = r.mainTmpl.Clone()
+		if err != nil {
+			return errors.Wrapf(err, "failed to clone the main template for template %q: %s", name, err)
+		}
+		root, err = root.AddParseTree("main", wrapper.Tree)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create the main template for template %q: %s", name, err)
+		}
+	}
+
+	// Prepare template data.
+	basePath := r.BasePath
+	if basePath == "" {
+		basePath = "/"
+	}
+
+	var langPrefs []langPref
+	if acceptLang := req.Header.Get(http.CanonicalHeaderKey("Accept-Language")); acceptLang != "" {
+		var tags []language.Tag
+		var weights []float32
+		tags, weights, err = language.ParseAcceptLanguage(acceptLang)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse the header \"Accept-Language\": %s", err)
+		}
+		for i, tag := range tags {
+			langPrefs = append(langPrefs, langPref{Lang: tag.String(), Weight: weights[i]})
+		}
+	} else {
+		langPrefs = []langPref{{Lang: "en", Weight: 1}}
+	}
+
+	tmplData := map[string]interface{}{"WebBasePath": basePath, "LangPrefs": langPrefs, "Data": data}
+
+	// Render the template.
 	var (
 		buf bytes.Buffer
 		bw  = bufio.NewWriter(&buf)
 	)
-	if err = t.Execute(bw, map[string]interface{}{"WebBasePath": r.BasePath, "Data": data}); err != nil {
+	if err = root.Execute(bw, tmplData); err != nil {
 		return err
 	}
 	if err = bw.Flush(); err != nil {
@@ -111,16 +154,38 @@ func (r *HTMLRenderer) RenderTemplate(w http.ResponseWriter, name string, data i
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, err = buf.WriteTo(w)
 	return err
+}
 
+// Returns true if a template is the old-style template.
+//
+// A template is considered as the old-style template
+// if it contains four blocks for customizing the page title,
+// styles, markup, and scripts.
+//
+// See https://github.com/i-core/werther/issues/11.
+func isOldStyleUserTemplate(root *template.Template) bool {
+	var tmpls []string
+	for _, tmpl := range root.Templates() {
+		tmpls = append(tmpls, tmpl.Name())
+	}
+	contains := func(arr []string, tgt string) bool {
+		for _, item := range arr {
+			if item == tgt {
+				return true
+			}
+		}
+		return false
+	}
+	return contains(tmpls, "title") && contains(tmpls, "style") && contains(tmpls, "js") && contains(tmpls, "content")
 }
 
 var mainT = `{{ define "main" }}
 <!DOCTYPE html>
-<html>
+<html lang="{{ (index .LangPrefs 0).Lang }}">
 	<head>
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title>{{ block "title" .Data }}{{ end }}</title>
-		<base href={{ .WebBasePath }}>
+		<base href="{{ .WebBasePath }}">
 		{{ block "style" .Data }}{{ end }}
 	</head>
 	<body>
