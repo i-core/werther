@@ -44,7 +44,7 @@ type ReqInfo struct {
 	Subject         string   `json:"subject"`
 }
 
-func initiateRequest(typ reqType, hydraURL, challenge string) (*ReqInfo, error) {
+func initiateRequest(typ reqType, hydraURL string, fakeTlsTermination bool, challenge string) (*ReqInfo, error) {
 	if challenge == "" {
 		return nil, ErrChallengeMissed
 	}
@@ -58,7 +58,16 @@ func initiateRequest(typ reqType, hydraURL, challenge string) (*ReqInfo, error) 
 	}
 	u = u.ResolveReference(ref)
 
-	resp, err := http.Get(u.String())
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	if fakeTlsTermination {
+		req.Header.Add("X-Forwarded-Proto", "https")
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

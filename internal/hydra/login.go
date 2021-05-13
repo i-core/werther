@@ -13,18 +13,19 @@ import (
 
 // LoginReqDoer fetches information on the OAuth2 request and then accept or reject the requested authentication process.
 type LoginReqDoer struct {
-	hydraURL    string
-	rememberFor int
+	hydraURL           string
+	fakeTlsTermination bool
+	rememberFor        int
 }
 
 // NewLoginReqDoer creates a LoginRequest.
-func NewLoginReqDoer(hydraURL string, rememberFor int) *LoginReqDoer {
-	return &LoginReqDoer{hydraURL: hydraURL, rememberFor: rememberFor}
+func NewLoginReqDoer(hydraURL string, fakeTlsTermination bool, rememberFor int) *LoginReqDoer {
+	return &LoginReqDoer{hydraURL: hydraURL, fakeTlsTermination: fakeTlsTermination, rememberFor: rememberFor}
 }
 
 // InitiateRequest fetches information on the OAuth2 request.
 func (lrd *LoginReqDoer) InitiateRequest(challenge string) (*ReqInfo, error) {
-	ri, err := initiateRequest(login, lrd.hydraURL, challenge)
+	ri, err := initiateRequest(login, lrd.hydraURL, lrd.fakeTlsTermination, challenge)
 	return ri, errors.Wrap(err, "failed to initiate login request")
 }
 
