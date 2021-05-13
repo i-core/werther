@@ -47,6 +47,6 @@ func (crd *ConsentReqDoer) AcceptConsentRequest(challenge string, remember bool,
 			IDToken: idToken,
 		},
 	}
-	redirectURI, err := acceptRequest(consent, crd.hydraURL, challenge, data)
+	redirectURI, err := acceptRequest(consent, crd.hydraURL, crd.fakeTlsTermination, challenge, data)
 	return redirectURI, errors.Wrap(err, "failed to accept consent request")
 }

@@ -30,6 +30,6 @@ func (lrd *LogoutReqDoer) InitiateRequest(challenge string) (*ReqInfo, error) {
 
 // AcceptLogoutRequest accepts the requested logout process, and returns redirect URI.
 func (lrd *LogoutReqDoer) AcceptLogoutRequest(challenge string) (string, error) {
-	redirectURI, err := acceptRequest(logout, lrd.hydraURL, challenge, nil)
+	redirectURI, err := acceptRequest(logout, lrd.hydraURL, lrd.fakeTlsTermination, challenge, nil)
 	return redirectURI, errors.Wrap(err, "failed to accept logout request")
 }

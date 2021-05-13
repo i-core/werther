@@ -85,7 +85,7 @@ func initiateRequest(typ reqType, hydraURL string, fakeTlsTermination bool, chal
 	return &ri, nil
 }
 
-func acceptRequest(typ reqType, hydraURL, challenge string, data interface{}) (string, error) {
+func acceptRequest(typ reqType, hydraURL string, fakeTlsTermination bool, challenge string, data interface{}) (string, error) {
 	if challenge == "" {
 		return "", ErrChallengeMissed
 	}
@@ -110,6 +110,10 @@ func acceptRequest(typ reqType, hydraURL, challenge string, data interface{}) (s
 	if err != nil {
 		return "", err
 	}
+	if fakeTlsTermination {
+		r.Header.Add("X-Forwarded-Proto", "https")
+	}
+
 	r.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(r)
 	if err != nil {
