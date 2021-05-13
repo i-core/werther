@@ -13,22 +13,23 @@ import (
 
 // LogoutReqDoer fetches information on the OAuth2 request and then accepts or rejects the requested logout process.
 type LogoutReqDoer struct {
-	hydraURL string
+	hydraURL           string
+	fakeTlsTermination bool
 }
 
 // NewLogoutReqDoer creates a LogoutRequest.
-func NewLogoutReqDoer(hydraURL string) *LogoutReqDoer {
-	return &LogoutReqDoer{hydraURL: hydraURL}
+func NewLogoutReqDoer(hydraURL string, fakeTlsTermination bool) *LogoutReqDoer {
+	return &LogoutReqDoer{hydraURL: hydraURL, fakeTlsTermination: fakeTlsTermination}
 }
 
 // InitiateRequest fetches information on the OAuth2 request.
 func (lrd *LogoutReqDoer) InitiateRequest(challenge string) (*ReqInfo, error) {
-	ri, err := initiateRequest(logout, lrd.hydraURL, challenge)
+	ri, err := initiateRequest(logout, lrd.hydraURL, lrd.fakeTlsTermination, challenge)
 	return ri, errors.Wrap(err, "failed to initiate logout request")
 }
 
 // AcceptLogoutRequest accepts the requested logout process, and returns redirect URI.
 func (lrd *LogoutReqDoer) AcceptLogoutRequest(challenge string) (string, error) {
-	redirectURI, err := acceptRequest(logout, lrd.hydraURL, challenge, nil)
+	redirectURI, err := acceptRequest(logout, lrd.hydraURL, lrd.fakeTlsTermination, challenge, nil)
 	return redirectURI, errors.Wrap(err, "failed to accept logout request")
 }
