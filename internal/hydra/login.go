@@ -40,6 +40,6 @@ func (lrd *LoginReqDoer) AcceptLoginRequest(challenge string, remember bool, sub
 		RememberFor: lrd.rememberFor,
 		Subject:     subject,
 	}
-	redirectURI, err := acceptRequest(login, lrd.hydraURL, challenge, data)
+	redirectURI, err := acceptRequest(login, lrd.hydraURL, lrd.fakeTlsTermination, challenge, data)
 	return redirectURI, errors.Wrap(err, "failed to accept login request")
 }
