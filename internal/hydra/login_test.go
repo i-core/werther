@@ -60,7 +60,7 @@ func TestInitiateLoginRequest(t *testing.T) {
 			h := &testInitiateLoginHandler{reqInfo: tc.reqInfo, status: tc.status}
 			srv := httptest.NewServer(h)
 			defer srv.Close()
-			ldr := hydra.NewLoginReqDoer(srv.URL, 0)
+			ldr := hydra.NewLoginReqDoer(srv.URL, false, 0)
 
 			reqInfo, err := ldr.InitiateRequest(tc.challenge)
 
@@ -160,7 +160,7 @@ func TestAcceptLoginRequest(t *testing.T) {
 			h := &testAcceptLoginHandler{challenge: tc.challenge, status: tc.status, redirect: tc.redirect}
 			srv := httptest.NewServer(h)
 			defer srv.Close()
-			ldr := hydra.NewLoginReqDoer(srv.URL, tc.rememberFor)
+			ldr := hydra.NewLoginReqDoer(srv.URL, false, tc.rememberFor)
 
 			redirect, err := ldr.AcceptLoginRequest(tc.challenge, tc.remember, tc.subject)
 

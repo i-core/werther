@@ -55,7 +55,7 @@ func TestInitiateConsentRequest(t *testing.T) {
 			h := &testInitiateConsentHandler{reqInfo: tc.reqInfo, status: tc.status}
 			srv := httptest.NewServer(h)
 			defer srv.Close()
-			ldr := hydra.NewConsentReqDoer(srv.URL, tc.rememberFor)
+			ldr := hydra.NewConsentReqDoer(srv.URL, false, tc.rememberFor)
 
 			reqInfo, err := ldr.InitiateRequest(tc.challenge)
 
@@ -149,7 +149,7 @@ func TestAcceptConsentRequest(t *testing.T) {
 			h := &testAcceptConsentHandler{challenge: tc.challenge, status: tc.status, redirect: tc.redirect}
 			srv := httptest.NewServer(h)
 			defer srv.Close()
-			ldr := hydra.NewConsentReqDoer(srv.URL, tc.rememberFor)
+			ldr := hydra.NewConsentReqDoer(srv.URL, false, tc.rememberFor)
 
 			var grantScope []string
 			for _, v := range tc.grantScope {
