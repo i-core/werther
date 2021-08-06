@@ -44,7 +44,7 @@ func TestInitiateLogoutRequest(t *testing.T) {
 			h := &testInitiateLogoutHandler{reqInfo: tc.reqInfo, status: tc.status}
 			srv := httptest.NewServer(h)
 			defer srv.Close()
-			ldr := hydra.NewLogoutReqDoer(srv.URL)
+			ldr := hydra.NewLogoutReqDoer(srv.URL, false)
 
 			reqInfo, err := ldr.InitiateRequest(tc.challenge)
 
@@ -126,7 +126,7 @@ func TestAcceptLogoutRequest(t *testing.T) {
 			h := &testAcceptLogoutHandler{challenge: tc.challenge, status: tc.status, redirect: tc.redirect}
 			srv := httptest.NewServer(h)
 			defer srv.Close()
-			ldr := hydra.NewLogoutReqDoer(srv.URL)
+			ldr := hydra.NewLogoutReqDoer(srv.URL, false)
 
 			redirect, err := ldr.AcceptLogoutRequest(tc.challenge)
 
