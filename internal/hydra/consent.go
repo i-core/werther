@@ -14,18 +14,18 @@ import (
 // ConsentReqDoer fetches information on the OAuth2 request and then accept or reject the requested authentication process.
 type ConsentReqDoer struct {
 	hydraURL           string
-	fakeTlsTermination bool
+	fakeTLSTermination bool
 	rememberFor        int
 }
 
 // NewConsentReqDoer creates a ConsentRequest.
-func NewConsentReqDoer(hydraURL string, fakeTlsTermination bool, rememberFor int) *ConsentReqDoer {
-	return &ConsentReqDoer{hydraURL: hydraURL, fakeTlsTermination: fakeTlsTermination, rememberFor: rememberFor}
+func NewConsentReqDoer(hydraURL string, fakeTLSTermination bool, rememberFor int) *ConsentReqDoer {
+	return &ConsentReqDoer{hydraURL: hydraURL, fakeTLSTermination: fakeTLSTermination, rememberFor: rememberFor}
 }
 
 // InitiateRequest fetches information on the OAuth2 request.
 func (crd *ConsentReqDoer) InitiateRequest(challenge string) (*ReqInfo, error) {
-	ri, err := initiateRequest(consent, crd.hydraURL, crd.fakeTlsTermination, challenge)
+	ri, err := initiateRequest(consent, crd.hydraURL, crd.fakeTLSTermination, challenge)
 	return ri, errors.Wrap(err, "failed to initiate consent request")
 }
 
@@ -47,6 +47,6 @@ func (crd *ConsentReqDoer) AcceptConsentRequest(challenge string, remember bool,
 			IDToken: idToken,
 		},
 	}
-	redirectURI, err := acceptRequest(consent, crd.hydraURL, crd.fakeTlsTermination, challenge, data)
+	redirectURI, err := acceptRequest(consent, crd.hydraURL, crd.fakeTLSTermination, challenge, data)
 	return redirectURI, errors.Wrap(err, "failed to accept consent request")
 }

@@ -44,7 +44,7 @@ type ReqInfo struct {
 	Subject         string   `json:"subject"`
 }
 
-func initiateRequest(typ reqType, hydraURL string, fakeTlsTermination bool, challenge string) (*ReqInfo, error) {
+func initiateRequest(typ reqType, hydraURL string, fakeTLSTermination bool, challenge string) (*ReqInfo, error) {
 	if challenge == "" {
 		return nil, ErrChallengeMissed
 	}
@@ -62,7 +62,7 @@ func initiateRequest(typ reqType, hydraURL string, fakeTlsTermination bool, chal
 	if err != nil {
 		return nil, err
 	}
-	if fakeTlsTermination {
+	if fakeTLSTermination {
 		req.Header.Add("X-Forwarded-Proto", "https")
 	}
 
@@ -85,7 +85,7 @@ func initiateRequest(typ reqType, hydraURL string, fakeTlsTermination bool, chal
 	return &ri, nil
 }
 
-func acceptRequest(typ reqType, hydraURL string, fakeTlsTermination bool, challenge string, data interface{}) (string, error) {
+func acceptRequest(typ reqType, hydraURL string, fakeTLSTermination bool, challenge string, data interface{}) (string, error) {
 	if challenge == "" {
 		return "", ErrChallengeMissed
 	}
@@ -110,7 +110,7 @@ func acceptRequest(typ reqType, hydraURL string, fakeTlsTermination bool, challe
 	if err != nil {
 		return "", err
 	}
-	if fakeTlsTermination {
+	if fakeTLSTermination {
 		r.Header.Add("X-Forwarded-Proto", "https")
 	}
 
