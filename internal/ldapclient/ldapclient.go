@@ -180,7 +180,8 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 
 	// User's roles is stored in LDAP as groups. We find all groups in a role's DN
 	// that include the user as a member.
-	entries, err := cn.SearchUserRoles(fmt.Sprintf("%s", details["dn"]), "dn", cli.RoleAttr)
+	sanitizedDN := strings.Replace(fmt.Sprintf("%s", details["dn"]), "\\", "", -1)
+	entries, err := cn.SearchUserRoles(sanitizedDN, "dn", cli.RoleAttr)
 	if err != nil {
 		return nil, err
 	}
