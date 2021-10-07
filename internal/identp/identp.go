@@ -219,7 +219,7 @@ func newLoginEndHandler(ra oa2LoginReqAcceptor, auther authenticator, tmplRender
 // InitiateRequest returns hydra.ErrChallengeExpired if the OAuth2 provider processed the challenge previously.
 type oa2ConsentReqProcessor interface {
 	InitiateRequest(challenge string) (*hydra.ReqInfo, error)
-	AcceptConsentRequest(challenge string, remember bool, grantScope []string, idToken interface{}) (string, error)
+	AcceptConsentRequest(challenge string, remember bool, grantScope []string, grantAudience []string, idToken interface{}) (string, error)
 }
 
 func newConsentHandler(rproc oa2ConsentReqProcessor, cfinder oidcClaimsFinder, claimScopes map[string]string) http.HandlerFunc {
@@ -277,7 +277,7 @@ func newConsentHandler(rproc oa2ConsentReqProcessor, cfinder oidcClaimsFinder, c
 				log.Debugw("Deleted the OIDC claim because it's not in requested scopes", "claim", claim)
 			}
 		}
-		redirectTo, err := rproc.AcceptConsentRequest(challenge, !ri.Skip, ri.RequestedScopes, claims)
+		redirectTo, err := rproc.AcceptConsentRequest(challenge, !ri.Skip, ri.RequestedScopes, ri.RequestedAudience, claims)
 		if err != nil {
 			log.Infow("Failed to accept a consent request to the OAuth2 provider", zap.Error(err), "scopes", ri.RequestedScopes, "claims", claims)
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

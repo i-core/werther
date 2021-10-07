@@ -351,6 +351,7 @@ func TestHandleConsent(t *testing.T) {
 		skip          bool
 		claims        map[string]interface{}
 		scopes        []string
+		audiences     []string
 		wantStatus    int
 		wantAcceptErr error
 		wantInitErr   error
@@ -403,12 +404,13 @@ func TestHandleConsent(t *testing.T) {
 						t.Errorf("wrong challenge while initiating the request: got %q; want %q", challenge, tc.challenge)
 					}
 					return &hydra.ReqInfo{
-						Challenge:       tc.challenge,
-						Subject:         tc.subject,
-						RequestedScopes: tc.scopes,
+						Challenge:         tc.challenge,
+						Subject:           tc.subject,
+						RequestedScopes:   tc.scopes,
+						RequestedAudience: tc.audiences,
 					}, tc.wantInitErr
 				},
-				acceptReqFunc: func(challenge string, remember bool, grantScope []string, idToken interface{}) (string, error) {
+				acceptReqFunc: func(challenge string, remember bool, grantScope []string, grantAudience []string, idToken interface{}) (string, error) {
 					if challenge != tc.challenge {
 						t.Errorf("wrong challenge while accepting the request: got %q; want %q", challenge, tc.challenge)
 					}
@@ -421,6 +423,16 @@ func TestHandleConsent(t *testing.T) {
 						for i := range grantScope {
 							if grantScope[i] != tc.scopes[i] {
 								t.Errorf("wrong granted scopes while accepting the request: got %q; want %q", grantScope, tc.scopes)
+								break
+							}
+						}
+					}
+					if len(grantAudience) != len(tc.audiences) {
+						t.Errorf("wrong granted audience while accepting the request: got %q; want %q", grantAudience, tc.audiences)
+					} else {
+						for i := range grantAudience {
+							if grantAudience[i] != tc.audiences[i] {
+								t.Errorf("wrong granted audience while accepting the request: got %q; want %q", grantAudience, tc.audiences)
 								break
 							}
 						}
@@ -455,15 +467,15 @@ func TestHandleConsent(t *testing.T) {
 
 type testConsentReqProc struct {
 	initReqFunc   func(string) (*hydra.ReqInfo, error)
-	acceptReqFunc func(string, bool, []string, interface{}) (string, error)
+	acceptReqFunc func(string, bool, []string, []string, interface{}) (string, error)
 }
 
 func (crp testConsentReqProc) InitiateRequest(challenge string) (*hydra.ReqInfo, error) {
 	return crp.initReqFunc(challenge)
 }
 
-func (crp testConsentReqProc) AcceptConsentRequest(challenge string, remember bool, grantScope []string, idToken interface{}) (string, error) {
-	return crp.acceptReqFunc(challenge, remember, grantScope, idToken)
+func (crp testConsentReqProc) AcceptConsentRequest(challenge string, remember bool, grantScope []string, grantAudience []string, idToken interface{}) (string, error) {
+	return crp.acceptReqFunc(challenge, remember, grantScope, grantAudience, idToken)
 }
 
 type testOIDCClaimsFinder struct {

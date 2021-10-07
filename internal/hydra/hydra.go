@@ -38,10 +38,11 @@ const (
 
 // ReqInfo contains information on an ongoing login or consent request.
 type ReqInfo struct {
-	Challenge       string   `json:"challenge"`
-	RequestedScopes []string `json:"requested_scope"`
-	Skip            bool     `json:"skip"`
-	Subject         string   `json:"subject"`
+	Challenge         string   `json:"challenge"`
+	RequestedScopes   []string `json:"requested_scope"`
+	RequestedAudience []string `json:"requested_access_token_audience"`
+	Skip              bool     `json:"skip"`
+	Subject           string   `json:"subject"`
 }
 
 func initiateRequest(typ reqType, hydraURL string, fakeTLSTermination bool, challenge string) (*ReqInfo, error) {
