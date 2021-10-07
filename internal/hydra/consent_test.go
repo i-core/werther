@@ -43,10 +43,11 @@ func TestInitiateConsentRequest(t *testing.T) {
 			challenge: "foo",
 			status:    200,
 			reqInfo: &hydra.ReqInfo{
-				Challenge:       "foo",
-				RequestedScopes: []string{"profile", "email"},
-				Skip:            true,
-				Subject:         "testSubject",
+				Challenge:         "foo",
+				RequestedScopes:   []string{"profile", "email"},
+				RequestedAudience: []string{"http://foo.bar"},
+				Skip:              true,
+				Subject:           "testSubject",
 			},
 		},
 	}
@@ -109,39 +110,42 @@ func (h *testInitiateConsentHandler) ServeHTTP(w http.ResponseWriter, r *http.Re
 
 func TestAcceptConsentRequest(t *testing.T) {
 	testCases := []struct {
-		name        string
-		challenge   string
-		rememberFor int
-		remember    bool
-		grantScope  []interface{}
-		idToken     string
-		status      int
-		redirect    string
-		wantErr     error
+		name          string
+		challenge     string
+		rememberFor   int
+		remember      bool
+		grantScope    []interface{}
+		grantAudience []interface{}
+		idToken       string
+		status        int
+		redirect      string
+		wantErr       error
 	}{
 		{
 			name:    "challenge is missed",
 			wantErr: hydra.ErrChallengeMissed,
 		},
 		{
-			name:        "challenge is not found",
-			challenge:   "foo",
-			rememberFor: 10,
-			remember:    true,
-			grantScope:  []interface{}{"scope1", "scope2"},
-			idToken:     "testToken",
-			status:      http.StatusNotFound,
-			wantErr:     hydra.ErrChallengeNotFound,
+			name:          "challenge is not found",
+			challenge:     "foo",
+			rememberFor:   10,
+			remember:      true,
+			grantScope:    []interface{}{"scope1", "scope2"},
+			grantAudience: []interface{}{},
+			idToken:       "testToken",
+			status:        http.StatusNotFound,
+			wantErr:       hydra.ErrChallengeNotFound,
 		},
 		{
-			name:        "happy path",
-			challenge:   "foo",
-			rememberFor: 10,
-			remember:    true,
-			grantScope:  []interface{}{"scope1", "scope2"},
-			idToken:     "testToken",
-			status:      http.StatusOK,
-			redirect:    "/test-redirect",
+			name:          "happy path",
+			challenge:     "foo",
+			rememberFor:   10,
+			remember:      true,
+			grantScope:    []interface{}{"scope1", "scope2"},
+			grantAudience: []interface{}{"https://server.com"},
+			idToken:       "testToken",
+			status:        http.StatusOK,
+			redirect:      "/test-redirect",
 		},
 	}
 	for _, tc := range testCases {
@@ -155,7 +159,11 @@ func TestAcceptConsentRequest(t *testing.T) {
 			for _, v := range tc.grantScope {
 				grantScope = append(grantScope, v.(string))
 			}
-			redirect, err := ldr.AcceptConsentRequest(tc.challenge, tc.remember, grantScope, tc.idToken)
+			var grantAudience []string
+			for _, v := range tc.grantAudience {
+				grantAudience = append(grantAudience, v.(string))
+			}
+			redirect, err := ldr.AcceptConsentRequest(tc.challenge, tc.remember, grantScope, grantAudience, tc.idToken)
 
 			if tc.wantErr != nil {
 				if err == nil {
@@ -176,10 +184,11 @@ func TestAcceptConsentRequest(t *testing.T) {
 				t.Errorf("\ngot challenge:\n\t%#v\nwant challenge:\n\t%#v", h.challenge, tc.challenge)
 			}
 			wantData := map[string]interface{}{
-				"grant_scope":  tc.grantScope,
-				"remember":     tc.remember,
-				"remember_for": tc.rememberFor,
-				"session":      map[string]interface{}{"id_token": tc.idToken},
+				"grant_scope":                 tc.grantScope,
+				"grant_access_token_audience": tc.grantAudience,
+				"remember":                    tc.remember,
+				"remember_for":                tc.rememberFor,
+				"session":                     map[string]interface{}{"id_token": tc.idToken},
 			}
 			if !reflect.DeepEqual(h.data, wantData) {
 				t.Errorf("\ngot request data:\n\t%#v\nwant request data:\n\t%#v", h.data, wantData)
