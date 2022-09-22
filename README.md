@@ -69,7 +69,7 @@ werther -h
 
 In LDAP user's roles are groups in which a user is a member.
 
-The environment variable `WERTHER_LDAP_ROLE_DN` is a DN for searching roles.
+The environment variable `WERTHER_LDAP_ROLE_BASEDN` is a DN for searching roles.
 
 For example, create an OU that repserents an application, and then in the created OU
 create groups that represent application's roles:
@@ -83,7 +83,7 @@ dc=com
             |-- cn=app1_role2 (objectClass="group", description="role2")
 ```
 
-Run Werther with the environment variable `WERTHER_LDAP_ROLE_DN`
+Run Werther with the environment variable `WERTHER_LDAP_ROLE_BASEDN`
 that equals to `ou=AppRoles,dc=example,dc=com`.
 
 In the above example Werther returns user's roles as a value
@@ -139,7 +139,7 @@ A name of a LDAP attribute is specified using the environment variable `WERTHER_
 and has the default value `description`.
 
 In the above example, Werther returns a response that contains the next roles:
-* when the environment variable `WERTHER_LDAP_ROLE_DN` equals to `ou=Test,ou=AppRoles,dc=example,dc=com`:
+* when the environment variable `WERTHER_LDAP_ROLE_BASEDN` equals to `ou=Test,ou=AppRoles,dc=example,dc=com`:
     ```json
     {
         "https://github.com/i-core/werther/claims/roles": {
@@ -148,7 +148,7 @@ In the above example, Werther returns a response that contains the next roles:
         }
     }
     ```
-* when the environment variable `WERTHER_LDAP_ROLE_DN` equals to `ou=Dev,ou=AppRoles,dc=example,dc=com`:
+* when the environment variable `WERTHER_LDAP_ROLE_BASEDN` equals to `ou=Dev,ou=AppRoles,dc=example,dc=com`:
     ```json
     {
         "https://github.com/i-core/werther/claims/roles": {
@@ -157,6 +157,23 @@ In the above example, Werther returns a response that contains the next roles:
         }
     }
     ```
+
+If your applications expect the roles claim to be an array of strings, for example Concourse or Argo CD,
+you can map groups to claims using with the environment variable `WERTHER_LDAP_FLAT_ROLE_CLAIMS`.
+In the above example, when the environment variable `WERTHER_LDAP_ROLE_BASEDN` equals to `ou=Dev,ou=AppRoles,dc=example,dc=com`
+and the `WERTHER_LDAP_FLAT_ROLE_CLAIMS` equals to `App1:https%3A%2F%2Fexample.com%2Fwerther%2Fclaims%2Froles%2Fapp1`
+(the name must be [URL encoded][uri-spec-encoding]), Werther returns one more role's claim.
+The role's claim `https://github.com/i-core/werther/claims/roles/app1` contains the roles as a string array.
+
+```json
+{
+    "https://github.com/i-core/werther/claims/roles": {
+        "App1": ["role1", "role3"],
+        "App2": ["role1", "role4"]
+    },
+    "https://github.com/i-core/werther/claims/roles/app1": ["role1", "role3"]
+}
+```
 
 ## UI customization
 

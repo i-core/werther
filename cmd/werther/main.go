@@ -64,6 +64,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	for k, v := range cnf.LDAP.FlatRoleClaims {
+		if _, ok := cnf.Identp.ClaimScopes[v]; !ok {
+			fmt.Fprintf(os.Stderr, "Flat role claim %q has no mapping to an OpenID Connect scope\n", v)
+			os.Exit(1)
+		}
+
+		roleClaim, err := url.QueryUnescape(v)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to unescape FlatRoleClaims: %s %s\n", v, err)
+			os.Exit(1)
+		}
+
+		cnf.LDAP.FlatRoleClaims[k] = roleClaim
+	}
+
 	logFunc := zap.NewProduction
 	if cnf.DevMode {
 		logFunc = zap.NewDevelopment
