@@ -48,17 +48,18 @@ type connector interface {
 
 // Config is a LDAP configuration.
 type Config struct {
-	Endpoints  []string          `envconfig:"endpoints" required:"true" desc:"a LDAP's server URLs as \"<address>:<port>\""`
-	BindDN     string            `envconfig:"binddn" desc:"a LDAP bind DN"`
-	BindPass   string            `envconfig:"bindpw" json:"-" desc:"a LDAP bind password"`
-	BaseDN     string            `envconfig:"basedn" required:"true" desc:"a LDAP base DN for searching users"`
-	AttrClaims map[string]string `envconfig:"attr_claims" default:"name:name,sn:family_name,givenName:given_name,mail:email" desc:"a mapping of LDAP attributes to OpenID connect claims"`
-	RoleBaseDN string            `envconfig:"role_basedn" required:"true" desc:"a LDAP base DN for searching roles"`
-	RoleAttr   string            `envconfig:"role_attr" default:"description" desc:"a LDAP group's attribute that contains a role's name"`
-	RoleClaim  string            `envconfig:"role_claim" default:"https://github.com/i-core/werther/claims/roles" desc:"a name of an OpenID Connect claim that contains user roles"`
-	CacheSize  int               `envconfig:"cache_size" default:"512" desc:"a user info cache's size in KiB"`
-	CacheTTL   time.Duration     `envconfig:"cache_ttl" default:"30m" desc:"a user info cache TTL"`
-	IsTLS      bool              `envconfig:"is_tls" default:"false" desc:"should LDAP connection be established via TLS"`
+	Endpoints      []string          `envconfig:"endpoints" required:"true" desc:"a LDAP's server URLs as \"<address>:<port>\""`
+	BindDN         string            `envconfig:"binddn" desc:"a LDAP bind DN"`
+	BindPass       string            `envconfig:"bindpw" json:"-" desc:"a LDAP bind password"`
+	BaseDN         string            `envconfig:"basedn" required:"true" desc:"a LDAP base DN for searching users"`
+	AttrClaims     map[string]string `envconfig:"attr_claims" default:"name:name,sn:family_name,givenName:given_name,mail:email" desc:"a mapping of LDAP attributes to OpenID connect claims"`
+	RoleBaseDN     string            `envconfig:"role_basedn" required:"true" desc:"a LDAP base DN for searching roles"`
+	RoleAttr       string            `envconfig:"role_attr" default:"description" desc:"a LDAP group's attribute that contains a role's name"`
+	RoleClaim      string            `envconfig:"role_claim" default:"https://github.com/i-core/werther/claims/roles" desc:"a name of an OpenID Connect claim that contains user roles"`
+	CacheSize      int               `envconfig:"cache_size" default:"512" desc:"a user info cache's size in KiB"`
+	CacheTTL       time.Duration     `envconfig:"cache_ttl" default:"30m" desc:"a user info cache TTL"`
+	IsTLS          bool              `envconfig:"is_tls" default:"false" desc:"should LDAP connection be established via TLS"`
+	FlatRoleClaims map[string]string `envconfig:"flat_role_claims" desc:"a mapping of groups under RoleBaseDN to OpenID Connect claims"`
 }
 
 // Client is a LDAP client (compatible with Active Directory).
@@ -135,7 +136,7 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 			log.Info("Failed to unmarshal user's OIDC claims", zap.Error(err), "data", cdata)
 			return nil, err
 		}
-		log.Debug("Retrieved user's OIDC claims from the cache", "claims", claims)
+		log.Debugw("Retrieved user's OIDC claims from the cache", "claims", claims)
 		return claims, nil
 	case freecache.ErrNotFound:
 		log.Debug("User's OIDC claims is not found in the cache")
@@ -219,6 +220,16 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 		}
 		roles[appID] = append(appRoles, entry[cli.RoleAttr])
 	}
+
+	for appID, roleClaim := range cli.FlatRoleClaims {
+		if v := roles[appID]; v != nil {
+			claims[roleClaim] = v
+			log.Debugw("Application roles: ", "appID", appID, "roles", v)
+		} else {
+			log.Warnw("Failed to get application roles", "appID", appID)
+		}
+	}
+
 	claims[cli.RoleClaim] = roles
 
 	// Save the claims in the cache for future queries.
@@ -246,13 +257,13 @@ func (cli *Client) connect(ctx context.Context) <-chan conn {
 			log := rlog.FromContext(ctx).Sugar()
 			cn, err := cli.connector.Connect(ctx, addr)
 			if err != nil {
-				log.Debug("Failed to create a LDAP connection", "address", addr)
+				log.Debugw("Failed to create a LDAP connection", "address", addr)
 				return
 			}
 			select {
 			case <-ctx.Done():
 				cn.Close()
-				log.Debug("a LDAP connection is cancelled", "address", addr)
+				log.Debugw("a LDAP connection is cancelled", "address", addr)
 				return
 			case ch <- cn:
 			}
