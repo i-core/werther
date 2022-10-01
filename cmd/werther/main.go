@@ -30,11 +30,12 @@ var version = ""
 
 // Config is a server's configuration.
 type Config struct {
-	DevMode bool   `envconfig:"dev_mode" default:"false" desc:"a development mode"`
-	Listen  string `default:":8080" desc:"a host and port to listen on (<host>:<port>)"`
-	Identp  identp.Config
-	LDAP    ldapclient.Config
-	Web     web.Config
+	DevMode   bool   `envconfig:"dev_mode" default:"false" desc:"a development mode"`
+	Listen    string `default:":8080" desc:"a host and port to listen on (<host>:<port>)"`
+	RoleClaim string `envconfig:"role_claim" default:"https://github.com/i-core/werther/claims/roles" desc:"a name of an OpenID Connect claim that contains user roles"`
+	Identp    identp.Config
+	LDAP      ldapclient.Config
+	Web       web.Config
 }
 
 func main() {
@@ -59,24 +60,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Invalid configuration: %s\n", err)
 		os.Exit(1)
 	}
-	if _, ok := cnf.Identp.ClaimScopes[url.QueryEscape(cnf.LDAP.RoleClaim)]; !ok {
-		fmt.Fprintf(os.Stderr, "Roles claim %q has no mapping to an OpenID Connect scope\n", cnf.LDAP.RoleClaim)
+	if _, ok := cnf.Identp.ClaimScopes[url.QueryEscape(cnf.RoleClaim)]; !ok {
+		fmt.Fprintf(os.Stderr, "Roles claim %q has no mapping to an OpenID Connect scope\n", cnf.RoleClaim)
 		os.Exit(1)
-	}
-
-	for k, v := range cnf.LDAP.FlatRoleClaims {
-		if _, ok := cnf.Identp.ClaimScopes[v]; !ok {
-			fmt.Fprintf(os.Stderr, "Flat role claim %q has no mapping to an OpenID Connect scope\n", v)
-			os.Exit(1)
-		}
-
-		roleClaim, err := url.QueryUnescape(v)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to unescape FlatRoleClaims: %s %s\n", v, err)
-			os.Exit(1)
-		}
-
-		cnf.LDAP.FlatRoleClaims[k] = roleClaim
 	}
 
 	logFunc := zap.NewProduction
@@ -95,11 +81,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	ldap := ldapclient.New(cnf.LDAP)
+	ldap := ldapclient.New(cnf.LDAP, cnf.RoleClaim)
 
 	router := routegroup.NewRouter(nosurf.NewPure, rlog.NewMiddleware(log))
 	router.AddRoutes(web.NewStaticHandler(cnf.Web), "/static")
-	router.AddRoutes(identp.NewHandler(cnf.Identp, ldap, htmlRenderer), "/auth")
+	router.AddRoutes(identp.NewHandler(cnf.Identp, cnf.RoleClaim, ldap, htmlRenderer), "/auth")
 	router.AddRoutes(stat.NewHandler(version), "/stat")
 
 	log = log.Named("main")

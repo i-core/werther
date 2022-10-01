@@ -69,16 +69,17 @@ type LoginTmplData struct {
 // between ORY Hydra and Werther Identity Provider.
 type Handler struct {
 	Config
-	um UserManager
-	tr TemplateRenderer
+	roleClaim string
+	um        UserManager
+	tr        TemplateRenderer
 }
 
 // NewHandler creates a new Handler.
 //
 // The template's renderer must be able to render a template with name "login.tmpl".
 // The template is a template of the login page. It receives struct LoginTmplData as template's data.
-func NewHandler(cnf Config, um UserManager, tr TemplateRenderer) *Handler {
-	return &Handler{Config: cnf, um: um, tr: tr}
+func NewHandler(cnf Config, roleClaim string, um UserManager, tr TemplateRenderer) *Handler {
+	return &Handler{Config: cnf, roleClaim: roleClaim, um: um, tr: tr}
 }
 
 // AddRoutes registers all required routes for Login & Consent Provider.
@@ -86,7 +87,7 @@ func (h *Handler) AddRoutes(apply func(m, p string, h http.Handler, mws ...func(
 	sessionTTL := int(h.SessionTTL.Seconds())
 	apply(http.MethodGet, "/login", newLoginStartHandler(hydra.NewLoginReqDoer(h.HydraURL, h.FakeTLSTermination, 0), h.tr))
 	apply(http.MethodPost, "/login", newLoginEndHandler(hydra.NewLoginReqDoer(h.HydraURL, h.FakeTLSTermination, sessionTTL), h.um, h.tr))
-	apply(http.MethodGet, "/consent", newConsentHandler(hydra.NewConsentReqDoer(h.HydraURL, h.FakeTLSTermination, sessionTTL), h.um, h.ClaimScopes))
+	apply(http.MethodGet, "/consent", newConsentHandler(hydra.NewConsentReqDoer(h.HydraURL, h.FakeTLSTermination, sessionTTL), h.um, h.ClaimScopes, h.roleClaim))
 	apply(http.MethodGet, "/logout", newLogoutHandler(hydra.NewLogoutReqDoer(h.HydraURL, h.FakeTLSTermination)))
 }
 
@@ -222,7 +223,7 @@ type oa2ConsentReqProcessor interface {
 	AcceptConsentRequest(challenge string, remember bool, grantScope []string, grantAudience []string, idToken interface{}) (string, error)
 }
 
-func newConsentHandler(rproc oa2ConsentReqProcessor, cfinder oidcClaimsFinder, claimScopes map[string]string) http.HandlerFunc {
+func newConsentHandler(rproc oa2ConsentReqProcessor, cfinder oidcClaimsFinder, claimScopes map[string]string, roleClaim string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log := rlog.FromContext(r.Context()).Sugar()
 
@@ -262,9 +263,16 @@ func newConsentHandler(rproc oa2ConsentReqProcessor, cfinder oidcClaimsFinder, c
 		// Remove claims that are not in the requested scopes.
 		for claim := range claims {
 			var found bool
+
+			// In the case of the flat roles group, only the main role claim is defined in the claim scopes
+			claimRoot := claim
+			if strings.HasPrefix(claim, roleClaim+"/") {
+				claimRoot = roleClaim
+			}
+
 			// We need to escape a claim due to ClaimScopes' keys contain URL encoded claims.
 			// It is because of config option's format compatibility.
-			if scope, ok := claimScopes[url.QueryEscape(claim)]; ok {
+			if scope, ok := claimScopes[url.QueryEscape(claimRoot)]; ok {
 				for _, rscope := range ri.RequestedScopes {
 					if rscope == scope {
 						found = true
