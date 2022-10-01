@@ -159,19 +159,34 @@ In the above example, Werther returns a response that contains the next roles:
     ```
 
 If your applications expect the roles claim to be an array of strings, for example Concourse or Argo CD,
-you can map groups to claims using with the environment variable `WERTHER_LDAP_FLAT_ROLE_CLAIMS`.
-In the above example, when the environment variable `WERTHER_LDAP_ROLE_BASEDN` equals to `ou=Dev,ou=AppRoles,dc=example,dc=com`
-and the `WERTHER_LDAP_FLAT_ROLE_CLAIMS` equals to `App1:https%3A%2F%2Fexample.com%2Fwerther%2Fclaims%2Froles%2Fapp1`
-(the name must be [URL encoded][uri-spec-encoding]), Werther returns one more role's claim.
-The role's claim `https://github.com/i-core/werther/claims/roles/app1` contains the roles as a string array.
+you can add groups to claims using with the environment variable `WERTHER_LDAP_FLAT_ROLE_CLAIMS`.
+When it is true Werther add corresponding claims for all the apps as an array of roles.
+
+Example 1:
+
+WERTHER_LDAP_FLAT_ROLE_CLAIMS=false
 
 ```json
 {
     "https://github.com/i-core/werther/claims/roles": {
-        "App1": ["role1", "role3"],
-        "App2": ["role1", "role4"]
+        "App1": ["role1", "role2"],
+        "App2": ["role3", "role4"]
+    }
+}
+```
+
+Example 2:
+
+WERTHER_LDAP_FLAT_ROLE_CLAIMS=true
+
+```json
+{
+    "https://github.com/i-core/werther/claims/roles": {
+        "App1": ["role1", "role2"],
+        "App2": ["role3", "role4"]
     },
-    "https://github.com/i-core/werther/claims/roles/app1": ["role1", "role3"]
+    "https://github.com/i-core/werther/claims/roles/App1": ["role1", "role2"],
+    "https://github.com/i-core/werther/claims/roles/App2": ["role3", "role4"]
 }
 ```
 

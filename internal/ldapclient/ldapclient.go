@@ -55,24 +55,25 @@ type Config struct {
 	AttrClaims     map[string]string `envconfig:"attr_claims" default:"name:name,sn:family_name,givenName:given_name,mail:email" desc:"a mapping of LDAP attributes to OpenID connect claims"`
 	RoleBaseDN     string            `envconfig:"role_basedn" required:"true" desc:"a LDAP base DN for searching roles"`
 	RoleAttr       string            `envconfig:"role_attr" default:"description" desc:"a LDAP group's attribute that contains a role's name"`
-	RoleClaim      string            `envconfig:"role_claim" default:"https://github.com/i-core/werther/claims/roles" desc:"a name of an OpenID Connect claim that contains user roles"`
 	CacheSize      int               `envconfig:"cache_size" default:"512" desc:"a user info cache's size in KiB"`
 	CacheTTL       time.Duration     `envconfig:"cache_ttl" default:"30m" desc:"a user info cache TTL"`
 	IsTLS          bool              `envconfig:"is_tls" default:"false" desc:"should LDAP connection be established via TLS"`
-	FlatRoleClaims map[string]string `envconfig:"flat_role_claims" desc:"a mapping of groups under RoleBaseDN to OpenID Connect claims"`
+	FlatRoleClaims bool              `envconfig:"flat_role_claims" desc:"add roles claim as single list"`
 }
 
 // Client is a LDAP client (compatible with Active Directory).
 type Client struct {
 	Config
+	roleClaim string
 	connector connector
 	cache     *freecache.Cache
 }
 
 // New creates a new LDAP client.
-func New(cnf Config) *Client {
+func New(cnf Config, roleClaim string) *Client {
 	return &Client{
 		Config:    cnf,
+		roleClaim: roleClaim,
 		connector: &ldapConnector{BaseDN: cnf.BaseDN, RoleBaseDN: cnf.RoleBaseDN, IsTLS: cnf.IsTLS},
 		cache:     freecache.NewCache(cnf.CacheSize * 1024),
 	}
@@ -218,19 +219,15 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 		if v := roles[appID]; v != nil {
 			appRoles = v.([]interface{})
 		}
-		roles[appID] = append(appRoles, entry[cli.RoleAttr])
-	}
+		appRoles = append(appRoles, entry[cli.RoleAttr])
+		roles[appID] = appRoles
 
-	for appID, roleClaim := range cli.FlatRoleClaims {
-		if v := roles[appID]; v != nil {
-			claims[roleClaim] = v
-			log.Debugw("Application roles: ", "appID", appID, "roles", v)
-		} else {
-			log.Warnw("Failed to get application roles", "appID", appID)
+		if cli.FlatRoleClaims {
+			claims[cli.roleClaim+"/"+appID] = appRoles
 		}
 	}
 
-	claims[cli.RoleClaim] = roles
+	claims[cli.roleClaim] = roles
 
 	// Save the claims in the cache for future queries.
 	cdata, err := json.Marshal(claims)

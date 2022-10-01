@@ -451,7 +451,7 @@ func TestHandleConsent(t *testing.T) {
 					return tc.claims, tc.wantFindErr
 				},
 			}
-			handler := nosurf.New(newConsentHandler(rproc, cfinder, nil))
+			handler := nosurf.New(newConsentHandler(rproc, cfinder, nil, "rc"))
 			handler.ExemptPath("/consent")
 			handler.ServeHTTP(rr, r)
 
