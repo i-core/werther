@@ -135,7 +135,7 @@ func TestHTMLRenderer(t *testing.T) {
 
 			rr := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
-			req.Header.Set(http.CanonicalHeaderKey("Accept-Language"), "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
+			req.Header.Set("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
 			err = r.RenderTemplate(rr, req, "login.tmpl", tc.data)
 
 			if tc.wantErr != nil {

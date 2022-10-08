@@ -124,7 +124,7 @@ func (r *HTMLRenderer) RenderTemplate(w http.ResponseWriter, req *http.Request, 
 	}
 
 	var langPrefs []langPref
-	if acceptLang := req.Header.Get(http.CanonicalHeaderKey("Accept-Language")); acceptLang != "" {
+	if acceptLang := req.Header.Get("Accept-Language"); acceptLang != "" {
 		var tags []language.Tag
 		var weights []float32
 		tags, weights, err = language.ParseAcceptLanguage(acceptLang)
