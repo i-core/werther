@@ -344,19 +344,20 @@ func (au testAuthenticator) Authenticate(ctx context.Context, username, password
 
 func TestHandleConsent(t *testing.T) {
 	testCases := []struct {
-		name          string
-		challenge     string
-		redirect      string
-		subject       string
-		skip          bool
-		claims        map[string]interface{}
-		scopes        []string
-		audiences     []string
-		wantStatus    int
-		wantAcceptErr error
-		wantInitErr   error
-		wantFindErr   error
-		wantLoc       string
+		name            string
+		challenge       string
+		redirect        string
+		subject         string
+		skip            bool
+		claims          []claim
+		requestedClaims map[string]interface{}
+		scopes          []string
+		audiences       []string
+		wantStatus      int
+		wantAcceptErr   error
+		wantInitErr     error
+		wantFindErr     error
+		wantLoc         string
 	}{
 		{
 			name:       "no login challenge",
@@ -376,13 +377,15 @@ func TestHandleConsent(t *testing.T) {
 			wantStatus:  http.StatusBadRequest,
 		},
 		{
-			name:       "happy path",
-			challenge:  "foo",
-			subject:    "joe",
-			redirect:   "/redirect-to",
-			wantStatus: http.StatusFound,
-			wantLoc:    "/redirect-to",
-			claims:     map[string]interface{}{"a": "foo", "b": "bar", "c": "baz"},
+			name:            "happy path",
+			challenge:       "foo",
+			subject:         "joe",
+			redirect:        "/redirect-to",
+			wantStatus:      http.StatusFound,
+			wantLoc:         "/redirect-to",
+			scopes:          []string{"sc"},
+			claims:          []claim{{Code: "a", Name: "a", Value: "foo"}, {Code: "c", Name: "c", Value: "baz"}},
+			requestedClaims: map[string]interface{}{"a": "foo", "c": "baz"},
 		},
 	}
 	for _, tc := range testCases {
@@ -437,21 +440,21 @@ func TestHandleConsent(t *testing.T) {
 							}
 						}
 					}
-					if !reflect.DeepEqual(idToken, tc.claims) {
+					if !reflect.DeepEqual(idToken, tc.requestedClaims) {
 						t.Errorf("wrong an id token while accepting the request: got %q; want %q", idToken, tc.claims)
 					}
 					return tc.redirect, tc.wantAcceptErr
 				},
 			}
 			cfinder := testOIDCClaimsFinder{
-				findFunc: func(ctx context.Context, username string) (map[string]interface{}, error) {
+				findFunc: func(ctx context.Context, username string) ([]claim, error) {
 					if username == "" {
 						t.Error("unexpected empty username")
 					}
 					return tc.claims, tc.wantFindErr
 				},
 			}
-			handler := nosurf.New(newConsentHandler(rproc, cfinder, nil, "rc"))
+			handler := nosurf.New(newConsentHandler(rproc, cfinder, map[string]string{"a": "sc", "c": "sc"}))
 			handler.ExemptPath("/consent")
 			handler.ServeHTTP(rr, r)
 
@@ -479,10 +482,10 @@ func (crp testConsentReqProc) AcceptConsentRequest(challenge string, remember bo
 }
 
 type testOIDCClaimsFinder struct {
-	findFunc func(context.Context, string) (map[string]interface{}, error)
+	findFunc func(context.Context, string) ([]claim, error)
 }
 
-func (cf testOIDCClaimsFinder) FindOIDCClaims(ctx context.Context, username string) (map[string]interface{}, error) {
+func (cf testOIDCClaimsFinder) FindOIDCClaims(ctx context.Context, username string) ([]claim, error) {
 	return cf.findFunc(ctx, username)
 }
 
