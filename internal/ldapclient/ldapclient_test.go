@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -167,7 +168,7 @@ func TestAuthenticate(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			client := New(Config{Endpoints: tc.connector.Endpoints(), BindDN: tc.bindDN, BindPass: tc.bindPass}, "test-roles-claim")
+			client := New(Config{Endpoints: tc.connector.Endpoints(), BindDN: tc.bindDN, BindPass: tc.bindPass})
 			client.connector = tc.connector
 			ok, err := client.Authenticate(context.Background(), tc.user, tc.pass)
 
@@ -193,7 +194,7 @@ func TestAuthenticate(t *testing.T) {
 
 func TestAuthenticateWhenMultipleEndpointsFailed(t *testing.T) {
 	connector := newTestConnector("ep1", fmt.Errorf("error"), "ep2", fmt.Errorf("error"))
-	client := New(Config{Endpoints: connector.Endpoints()}, "test-roles-claim")
+	client := New(Config{Endpoints: connector.Endpoints()})
 	client.connector = connector
 	_, err := client.Authenticate(context.Background(), "user1", "user1")
 
@@ -209,7 +210,7 @@ func TestAuthenticateWhenMultipleEndpointsFailed(t *testing.T) {
 func TestAuthenticateWhenOneEndpointFailedAndOneSuccess(t *testing.T) {
 	ep2 := &testConn{users: users}
 	connector := newTestConnector("ep1", fmt.Errorf("error"), "ep2", ep2)
-	client := New(Config{Endpoints: connector.Endpoints()}, "test-roles-claim")
+	client := New(Config{Endpoints: connector.Endpoints()})
 	client.connector = connector
 	ok, err := client.Authenticate(context.Background(), "user1", "user1")
 
@@ -228,7 +229,7 @@ func TestAuthenticateWhenMultipleEndpointsSuccess(t *testing.T) {
 	ep1 := &testConn{users: users}
 	ep2 := &testConn{users: users}
 	connector := newTestConnector("ep1", ep1, "ep2", ep2)
-	client := New(Config{Endpoints: connector.Endpoints()}, "test-roles-claim")
+	client := New(Config{Endpoints: connector.Endpoints()})
 	client.connector = connector
 
 	ok, err := client.Authenticate(context.Background(), "user1", "user1")
@@ -270,7 +271,7 @@ func TestFindOIDCClaims(t *testing.T) {
 		attrClaims     map[string]string
 		flatRoleClaims bool
 		wantErr        error
-		want           map[string]interface{}
+		want           []Claim
 	}{
 		{
 			name:      "username is empty",
@@ -306,50 +307,56 @@ func TestFindOIDCClaims(t *testing.T) {
 			connector:  newTestConnector("ep1", &testConn{users: users}),
 			user:       "user1",
 			attrClaims: map[string]string{"dn": "name", "a": "claimA", "b": "claimB"},
-			want:       map[string]interface{}{"name": "user1", "claimA": "valA", "claimB": "valB", "test-roles-claim": make(map[string]interface{})},
+			want: []Claim{{"claimA", "claimA", "valA"},
+				{"claimB", "claimB", "valB"},
+				{"name", "name", "user1"}},
 		},
 		{
 			name:       "skip claim if no attribute",
 			connector:  newTestConnector("ep1", &testConn{users: users}),
 			user:       "user1",
 			attrClaims: map[string]string{"dn": "name", "a": "claimA", "d": "claimD"},
-			want:       map[string]interface{}{"name": "user1", "claimA": "valA", "test-roles-claim": make(map[string]interface{})},
+			want: []Claim{{"claimA", "claimA", "valA"},
+				{"name", "name", "user1"}},
 		},
 		{
 			name:       "claims with roles for one application",
 			connector:  newTestConnector("ep1", &testConn{users: users}),
 			user:       "user2",
 			attrClaims: map[string]string{"dn": "name"},
-			want:       map[string]interface{}{"name": "user2", "test-roles-claim": map[string]interface{}{"app1": []interface{}{"r1", "r2"}}},
+			want: []Claim{{"name", "name", "user2"},
+				{"test-roles-claim", "test-roles-claim", map[string]interface{}{"app1": []interface{}{"r1", "r2"}}}},
 		},
 		{
 			name:       "claims with roles for multiple applications",
 			connector:  newTestConnector("ep1", &testConn{users: users}),
 			user:       "user3",
 			attrClaims: map[string]string{"dn": "name"},
-			want: map[string]interface{}{"name": "user3",
-				"test-roles-claim": map[string]interface{}{"app1": []interface{}{"r1", "r2"}, "app2": []interface{}{"r3", "r4"}}},
+			want: []Claim{{"name", "name", "user3"},
+				{"test-roles-claim", "test-roles-claim", map[string]interface{}{"app1": []interface{}{"r1", "r2"}, "app2": []interface{}{"r3", "r4"}}}},
 		},
 		{
 			name:       "skip role without DN",
 			connector:  newTestConnector("ep1", &testConn{users: users}),
 			user:       "user4",
 			attrClaims: map[string]string{"dn": "name"},
-			want:       map[string]interface{}{"name": "user4", "test-roles-claim": map[string]interface{}{"app1": []interface{}{"r1"}}},
+			want: []Claim{{"name", "name", "user4"},
+				{"test-roles-claim", "test-roles-claim", map[string]interface{}{"app1": []interface{}{"r1"}}}},
 		},
 		{
 			name:       "skip role without role attribute",
 			connector:  newTestConnector("ep1", &testConn{users: users}),
 			user:       "user5",
 			attrClaims: map[string]string{"dn": "name"},
-			want:       map[string]interface{}{"name": "user5", "test-roles-claim": map[string]interface{}{"app1": []interface{}{"r1"}}},
+			want: []Claim{{"name", "name", "user5"},
+				{"test-roles-claim", "test-roles-claim", map[string]interface{}{"app1": []interface{}{"r1"}}}},
 		},
 		{
 			name:       "skip invalid role without role base DN",
 			connector:  newTestConnector("ep1", &testConn{users: users}),
 			user:       "user6",
 			attrClaims: map[string]string{"dn": "name"},
-			want:       map[string]interface{}{"name": "user6", "test-roles-claim": make(map[string]interface{})},
+			want:       []Claim{{"name", "name", "user6"}},
 		},
 		{
 			name:       "auth with invalid service account",
@@ -367,32 +374,33 @@ func TestFindOIDCClaims(t *testing.T) {
 			bindPass:   "servicePass",
 			user:       "user1",
 			attrClaims: map[string]string{"dn": "name", "a": "claimA", "b": "claimB"},
-			want: map[string]interface{}{"name": "user1", "claimA": "valA", "claimB": "valB",
-				"test-roles-claim": make(map[string]interface{})},
+			want: []Claim{{"claimA", "claimA", "valA"},
+				{"claimB", "claimB", "valB"},
+				{"name", "name", "user1"}},
 		},
 		{
 			name:           "skip flat role if no app",
 			connector:      newTestConnector("ep1", &testConn{users: users}),
 			user:           "user1",
 			flatRoleClaims: true,
-			want:           map[string]interface{}{"test-roles-claim": make(map[string]interface{})},
+			want:           []Claim{},
 		},
 		{
 			name:           "flat roles for one application",
 			connector:      newTestConnector("ep1", &testConn{users: users}),
 			user:           "user2",
 			flatRoleClaims: true,
-			want: map[string]interface{}{"test-roles-claim/app1": []interface{}{"r1", "r2"},
-				"test-roles-claim": map[string]interface{}{"app1": []interface{}{"r1", "r2"}}},
+			want: []Claim{{"test-roles-claim", "test-roles-claim", map[string]interface{}{"app1": []interface{}{"r1", "r2"}}},
+				{"test-roles-claim", "test-roles-claim/app1", []interface{}{"r1", "r2"}}},
 		},
 		{
 			name:           "flat roles for multiple applications",
 			connector:      newTestConnector("ep1", &testConn{users: users}),
 			user:           "user3",
 			flatRoleClaims: true,
-			want: map[string]interface{}{"test-roles-claim/app1": []interface{}{"r1", "r2"},
-				"test-roles-claim/app2": []interface{}{"r3", "r4"},
-				"test-roles-claim":      map[string]interface{}{"app1": []interface{}{"r1", "r2"}, "app2": []interface{}{"r3", "r4"}}},
+			want: []Claim{{"test-roles-claim", "test-roles-claim", map[string]interface{}{"app1": []interface{}{"r1", "r2"}, "app2": []interface{}{"r3", "r4"}}},
+				{"test-roles-claim", "test-roles-claim/app1", []interface{}{"r1", "r2"}},
+				{"test-roles-claim", "test-roles-claim/app2", []interface{}{"r3", "r4"}}},
 		},
 	}
 	for _, tc := range testCases {
@@ -404,8 +412,9 @@ func TestFindOIDCClaims(t *testing.T) {
 				AttrClaims:     tc.attrClaims,
 				FlatRoleClaims: tc.flatRoleClaims,
 				RoleBaseDN:     "ou=test,dc=local",
+				RoleClaim:      "test-roles-claim",
 				RoleAttr:       "test-roles-attr",
-			}, "test-roles-claim")
+			})
 			client.connector = tc.connector
 			got, err := client.FindOIDCClaims(context.Background(), tc.user)
 
@@ -423,6 +432,7 @@ func TestFindOIDCClaims(t *testing.T) {
 				t.Fatalf("\ngot error:\n\t%s\nwant no errors", err)
 			}
 
+			sort.Slice(got, func(i, j int) bool { return got[i].Name < got[j].Name })
 			if !reflect.DeepEqual(got, tc.want) {
 				t.Errorf("\ngot claims:\n\t%v\nwant claims:\n\t%v", got, tc.want)
 			}
@@ -438,7 +448,7 @@ func TestClaimsCache(t *testing.T) {
 		AttrClaims: map[string]string{"dn": "name", "a": "claimA", "d": "claimD"},
 		RoleBaseDN: "ou=test,dc=local",
 		RoleAttr:   "test-roles-attr",
-	}, "test-roles-claim")
+	})
 	client.connector = connector
 
 	ok, err := client.Authenticate(context.Background(), "user2", "user2")

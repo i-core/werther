@@ -55,6 +55,7 @@ type Config struct {
 	AttrClaims     map[string]string `envconfig:"attr_claims" default:"name:name,sn:family_name,givenName:given_name,mail:email" desc:"a mapping of LDAP attributes to OpenID connect claims"`
 	RoleBaseDN     string            `envconfig:"role_basedn" required:"true" desc:"a LDAP base DN for searching roles"`
 	RoleAttr       string            `envconfig:"role_attr" default:"description" desc:"a LDAP group's attribute that contains a role's name"`
+	RoleClaim      string            `envconfig:"role_claim" default:"https://github.com/i-core/werther/claims/roles" desc:"a name of an OpenID Connect claim that contains user roles"`
 	CacheSize      int               `envconfig:"cache_size" default:"512" desc:"a user info cache's size in KiB"`
 	CacheTTL       time.Duration     `envconfig:"cache_ttl" default:"30m" desc:"a user info cache TTL"`
 	IsTLS          bool              `envconfig:"is_tls" default:"false" desc:"should LDAP connection be established via TLS"`
@@ -64,19 +65,24 @@ type Config struct {
 // Client is a LDAP client (compatible with Active Directory).
 type Client struct {
 	Config
-	roleClaim string
 	connector connector
 	cache     *freecache.Cache
 }
 
 // New creates a new LDAP client.
-func New(cnf Config, roleClaim string) *Client {
+func New(cnf Config) *Client {
 	return &Client{
 		Config:    cnf,
-		roleClaim: roleClaim,
 		connector: &ldapConnector{BaseDN: cnf.BaseDN, RoleBaseDN: cnf.RoleBaseDN, IsTLS: cnf.IsTLS},
 		cache:     freecache.NewCache(cnf.CacheSize * 1024),
 	}
+}
+
+// Claim is the FindOIDCClaims result struct
+type Claim struct {
+	Code  string      // the root claim name
+	Name  string      // the claim name
+	Value interface{} // the value
 }
 
 // Authenticate authenticates a user with a username and password.
@@ -122,7 +128,7 @@ func (cli *Client) Authenticate(ctx context.Context, username, password string) 
 }
 
 // FindOIDCClaims finds all OIDC claims for a user.
-func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[string]interface{}, error) {
+func (cli *Client) FindOIDCClaims(ctx context.Context, username string) ([]Claim, error) {
 	if username == "" {
 		return nil, errMissedUsername
 	}
@@ -132,7 +138,7 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 	// Retrieving from LDAP is slow. So, we try to get claims for the given username from the cache.
 	switch cdata, err := cli.cache.Get([]byte(username)); err {
 	case nil:
-		var claims map[string]interface{}
+		var claims []Claim
 		if err = json.Unmarshal(cdata, &claims); err != nil {
 			log.Info("Failed to unmarshal user's OIDC claims", zap.Error(err), "data", cdata)
 			return nil, err
@@ -173,10 +179,10 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 	log.Infow("Retrieved user's info from LDAP", "details", details)
 
 	// Transform the retrieved attributes to corresponding claims.
-	claims := make(map[string]interface{})
+	claims := make([]Claim, 0, len(details))
 	for attr, v := range details {
 		if claim, ok := cli.AttrClaims[attr]; ok {
-			claims[claim] = v
+			claims = append(claims, Claim{claim, claim, v})
 		}
 	}
 
@@ -221,13 +227,17 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) (map[str
 		}
 		appRoles = append(appRoles, entry[cli.RoleAttr])
 		roles[appID] = appRoles
-
-		if cli.FlatRoleClaims {
-			claims[cli.roleClaim+"/"+appID] = appRoles
-		}
 	}
 
-	claims[cli.roleClaim] = roles
+	if len(roles) > 0 {
+		claims = append(claims, Claim{cli.RoleClaim, cli.RoleClaim, roles})
+
+		if cli.FlatRoleClaims {
+			for appID, appRoles := range roles {
+				claims = append(claims, Claim{cli.RoleClaim, cli.RoleClaim + "/" + appID, appRoles})
+			}
+		}
+	}
 
 	// Save the claims in the cache for future queries.
 	cdata, err := json.Marshal(claims)

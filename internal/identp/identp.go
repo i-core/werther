@@ -18,6 +18,7 @@ import (
 
 	"github.com/i-core/rlog"
 	"github.com/i-core/werther/internal/hydra"
+	"github.com/i-core/werther/internal/ldapclient"
 	"github.com/justinas/nosurf"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -46,9 +47,11 @@ type authenticator interface {
 	Authenticate(ctx context.Context, username, password string) (ok bool, err error)
 }
 
+type claim = ldapclient.Claim
+
 // oidcClaimsFinder is an interface that is used for searching OpenID Connect claims for the given username.
 type oidcClaimsFinder interface {
-	FindOIDCClaims(ctx context.Context, username string) (map[string]interface{}, error)
+	FindOIDCClaims(ctx context.Context, username string) ([]claim, error)
 }
 
 // TemplateRenderer renders a template with data and writes it to a http.ResponseWriter.
@@ -69,17 +72,16 @@ type LoginTmplData struct {
 // between ORY Hydra and Werther Identity Provider.
 type Handler struct {
 	Config
-	roleClaim string
-	um        UserManager
-	tr        TemplateRenderer
+	um UserManager
+	tr TemplateRenderer
 }
 
 // NewHandler creates a new Handler.
 //
 // The template's renderer must be able to render a template with name "login.tmpl".
 // The template is a template of the login page. It receives struct LoginTmplData as template's data.
-func NewHandler(cnf Config, roleClaim string, um UserManager, tr TemplateRenderer) *Handler {
-	return &Handler{Config: cnf, roleClaim: roleClaim, um: um, tr: tr}
+func NewHandler(cnf Config, um UserManager, tr TemplateRenderer) *Handler {
+	return &Handler{Config: cnf, um: um, tr: tr}
 }
 
 // AddRoutes registers all required routes for Login & Consent Provider.
@@ -87,7 +89,7 @@ func (h *Handler) AddRoutes(apply func(m, p string, h http.Handler, mws ...func(
 	sessionTTL := int(h.SessionTTL.Seconds())
 	apply(http.MethodGet, "/login", newLoginStartHandler(hydra.NewLoginReqDoer(h.HydraURL, h.FakeTLSTermination, 0), h.tr))
 	apply(http.MethodPost, "/login", newLoginEndHandler(hydra.NewLoginReqDoer(h.HydraURL, h.FakeTLSTermination, sessionTTL), h.um, h.tr))
-	apply(http.MethodGet, "/consent", newConsentHandler(hydra.NewConsentReqDoer(h.HydraURL, h.FakeTLSTermination, sessionTTL), h.um, h.ClaimScopes, h.roleClaim))
+	apply(http.MethodGet, "/consent", newConsentHandler(hydra.NewConsentReqDoer(h.HydraURL, h.FakeTLSTermination, sessionTTL), h.um, h.ClaimScopes))
 	apply(http.MethodGet, "/logout", newLogoutHandler(hydra.NewLogoutReqDoer(h.HydraURL, h.FakeTLSTermination)))
 }
 
@@ -223,7 +225,7 @@ type oa2ConsentReqProcessor interface {
 	AcceptConsentRequest(challenge string, remember bool, grantScope []string, grantAudience []string, idToken interface{}) (string, error)
 }
 
-func newConsentHandler(rproc oa2ConsentReqProcessor, cfinder oidcClaimsFinder, claimScopes map[string]string, roleClaim string) http.HandlerFunc {
+func newConsentHandler(rproc oa2ConsentReqProcessor, cfinder oidcClaimsFinder, claimScopes map[string]string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log := rlog.FromContext(r.Context()).Sugar()
 
@@ -260,19 +262,14 @@ func newConsentHandler(rproc oa2ConsentReqProcessor, cfinder oidcClaimsFinder, c
 		}
 		log.Debugw("Found user's OIDC claims", "claims", claims)
 
+		requestedClaims := make(map[string]interface{})
 		// Remove claims that are not in the requested scopes.
-		for claim := range claims {
+		for _, claim := range claims {
 			var found bool
-
-			// In the case of the flat roles group, only the main role claim is defined in the claim scopes
-			claimRoot := claim
-			if strings.HasPrefix(claim, roleClaim+"/") {
-				claimRoot = roleClaim
-			}
 
 			// We need to escape a claim due to ClaimScopes' keys contain URL encoded claims.
 			// It is because of config option's format compatibility.
-			if scope, ok := claimScopes[url.QueryEscape(claimRoot)]; ok {
+			if scope, ok := claimScopes[url.QueryEscape(claim.Code)]; ok {
 				for _, rscope := range ri.RequestedScopes {
 					if rscope == scope {
 						found = true
@@ -280,18 +277,19 @@ func newConsentHandler(rproc oa2ConsentReqProcessor, cfinder oidcClaimsFinder, c
 					}
 				}
 			}
-			if !found {
-				delete(claims, claim)
+			if found {
+				requestedClaims[claim.Name] = claim.Value
+			} else {
 				log.Debugw("Deleted the OIDC claim because it's not in requested scopes", "claim", claim)
 			}
 		}
-		redirectTo, err := rproc.AcceptConsentRequest(challenge, !ri.Skip, ri.RequestedScopes, ri.RequestedAudience, claims)
+		redirectTo, err := rproc.AcceptConsentRequest(challenge, !ri.Skip, ri.RequestedScopes, ri.RequestedAudience, requestedClaims)
 		if err != nil {
-			log.Infow("Failed to accept a consent request to the OAuth2 provider", zap.Error(err), "scopes", ri.RequestedScopes, "claims", claims)
+			log.Infow("Failed to accept a consent request to the OAuth2 provider", zap.Error(err), "scopes", ri.RequestedScopes, "claims", requestedClaims)
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
-		log.Debugw("Accepted the consent request to the OAuth2 provider", "scopes", ri.RequestedScopes, "claims", claims)
+		log.Debugw("Accepted the consent request to the OAuth2 provider", "scopes", ri.RequestedScopes, "claims", requestedClaims)
 		http.Redirect(w, r, redirectTo, http.StatusFound)
 	}
 }
