@@ -309,7 +309,8 @@ func TestFindOIDCClaims(t *testing.T) {
 			attrClaims: map[string]string{"dn": "name", "a": "claimA", "b": "claimB"},
 			want: []Claim{{"claimA", "claimA", "valA"},
 				{"claimB", "claimB", "valB"},
-				{"name", "name", "user1"}},
+				{"name", "name", "user1"},
+				{"test-roles-claim", "test-roles-claim", make(map[string]interface{})}},
 		},
 		{
 			name:       "skip claim if no attribute",
@@ -317,7 +318,8 @@ func TestFindOIDCClaims(t *testing.T) {
 			user:       "user1",
 			attrClaims: map[string]string{"dn": "name", "a": "claimA", "d": "claimD"},
 			want: []Claim{{"claimA", "claimA", "valA"},
-				{"name", "name", "user1"}},
+				{"name", "name", "user1"},
+				{"test-roles-claim", "test-roles-claim", make(map[string]interface{})}},
 		},
 		{
 			name:       "claims with roles for one application",
@@ -356,7 +358,8 @@ func TestFindOIDCClaims(t *testing.T) {
 			connector:  newTestConnector("ep1", &testConn{users: users}),
 			user:       "user6",
 			attrClaims: map[string]string{"dn": "name"},
-			want:       []Claim{{"name", "name", "user6"}},
+			want: []Claim{{"name", "name", "user6"},
+				{"test-roles-claim", "test-roles-claim", make(map[string]interface{})}},
 		},
 		{
 			name:       "auth with invalid service account",
@@ -376,14 +379,15 @@ func TestFindOIDCClaims(t *testing.T) {
 			attrClaims: map[string]string{"dn": "name", "a": "claimA", "b": "claimB"},
 			want: []Claim{{"claimA", "claimA", "valA"},
 				{"claimB", "claimB", "valB"},
-				{"name", "name", "user1"}},
+				{"name", "name", "user1"},
+				{"test-roles-claim", "test-roles-claim", make(map[string]interface{})}},
 		},
 		{
 			name:           "skip flat role if no app",
 			connector:      newTestConnector("ep1", &testConn{users: users}),
 			user:           "user1",
 			flatRoleClaims: true,
-			want:           []Claim{},
+			want:           []Claim{{"test-roles-claim", "test-roles-claim", make(map[string]interface{})}},
 		},
 		{
 			name:           "flat roles for one application",

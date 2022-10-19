@@ -229,13 +229,11 @@ func (cli *Client) FindOIDCClaims(ctx context.Context, username string) ([]Claim
 		roles[appID] = appRoles
 	}
 
-	if len(roles) > 0 {
-		claims = append(claims, Claim{cli.RoleClaim, cli.RoleClaim, roles})
+	claims = append(claims, Claim{cli.RoleClaim, cli.RoleClaim, roles})
 
-		if cli.FlatRoleClaims {
-			for appID, appRoles := range roles {
-				claims = append(claims, Claim{cli.RoleClaim, cli.RoleClaim + "/" + appID, appRoles})
-			}
+	if cli.FlatRoleClaims {
+		for appID, appRoles := range roles {
+			claims = append(claims, Claim{cli.RoleClaim, cli.RoleClaim + "/" + appID, appRoles})
 		}
 	}
 
